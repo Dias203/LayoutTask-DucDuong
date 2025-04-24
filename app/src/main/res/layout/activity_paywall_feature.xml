@@ -14,10 +14,11 @@
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/btnClose"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="@dimen/_28sdp"
+            android:layout_height="@dimen/_28sdp"
             android:layout_marginTop="@dimen/_11sdp"
             android:layout_marginEnd="@dimen/_13sdp"
+            android:padding="@dimen/_3sdp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:srcCompat="@drawable/ic_delete" />
@@ -58,18 +59,21 @@
             android:textColor="@color/dark_charcoal"
             android:textSize="@dimen/_24sdp"
             app:autoSizeMaxTextSize="@dimen/_24sdp"
-            app:autoSizeMinTextSize="@dimen/_14sdp"
+            app:autoSizeMinTextSize="@dimen/_16sdp"
             app:autoSizeTextType="uniform"
+            app:layout_constraintEnd_toStartOf="@id/textView3"
             app:layout_constraintStart_toStartOf="@id/textView1"
             app:layout_constraintTop_toBottomOf="@id/textView1"
+            app:layout_constraintWidth_percent="0.3361"
             app:srcCompat="@drawable/app_name"
             tools:ignore="HardcodedText" />
 
         <androidx.appcompat.widget.AppCompatTextView
             android:id="@+id/textView3"
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginHorizontal="@dimen/_9sdp"
+            android:layout_marginEnd="@dimen/_11sdp"
             android:layout_marginBottom="@dimen/_4sdp"
             android:background="@drawable/bg_pro_text"
             android:includeFontPadding="false"
@@ -80,17 +84,19 @@
             android:textSize="@dimen/_18sdp"
             android:textStyle="italic|bold"
             app:layout_constraintBottom_toBottomOf="@id/textView2"
+            app:layout_constraintEnd_toEndOf="@+id/textView1"
             app:layout_constraintStart_toEndOf="@id/textView2"
             app:layout_constraintTop_toTopOf="@id/textView2"
             tools:ignore="HardcodedText" />
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/btnSparkle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="@dimen/_30sdp"
+            android:layout_height="@dimen/_30sdp"
             android:layout_gravity="center"
             android:layout_marginStart="@dimen/_50sdp"
             android:layout_marginTop="@dimen/_29sdp"
+            android:padding="@dimen/_4sdp"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/textView2"
             app:srcCompat="@drawable/ic_sparkle" />
@@ -119,8 +125,9 @@
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/btnRemove"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="@dimen/_30sdp"
+            android:layout_height="@dimen/_30sdp"
+            android:padding="@dimen/_4sdp"
             app:layout_constraintEnd_toStartOf="@+id/btnNoAds"
             app:layout_constraintStart_toEndOf="@+id/btnSparkle"
             app:layout_constraintTop_toTopOf="@+id/btnSparkle"
@@ -149,9 +156,10 @@
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/btnNoAds"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="@dimen/_30sdp"
+            android:layout_height="@dimen/_30sdp"
             android:layout_marginEnd="@dimen/_50sdp"
+            android:padding="@dimen/_4sdp"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="@+id/btnRemove"
             app:srcCompat="@drawable/ic_ad_blocker" />
@@ -180,9 +188,10 @@
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/btnHDQuality"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="@dimen/_30sdp"
+            android:layout_height="@dimen/_30sdp"
             android:layout_marginTop="@dimen/_13sdp"
+            android:padding="@dimen/_4sdp"
             app:layout_constraintEnd_toStartOf="@+id/tvBtnRemove"
             app:layout_constraintStart_toEndOf="@+id/tvBtnSparkle"
             app:layout_constraintTop_toBottomOf="@+id/tvBtnSparkle"
@@ -211,8 +220,9 @@
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/btnImage"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="@dimen/_30sdp"
+            android:layout_height="@dimen/_30sdp"
+            android:padding="@dimen/_4sdp"
             app:layout_constraintEnd_toStartOf="@+id/tvNoAds"
             app:layout_constraintStart_toEndOf="@+id/tvBtnRemove"
             app:layout_constraintTop_toTopOf="@id/btnHDQuality"
@@ -251,13 +261,12 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/btn3Day"
             android:layout_width="0dp"
-            android:layout_height="0dp"
+            android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/_41sdp"
             android:layout_marginEnd="@dimen/_13sdp"
             android:background="@drawable/bg_selected_paywall_feature"
             android:paddingHorizontal="@dimen/_8sdp"
             android:paddingVertical="@dimen/_6sdp"
-            app:layout_constraintDimensionRatio="328:65"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="@id/lineConstraint"
             app:layout_constraintTop_toBottomOf="@id/lineConstraint"
@@ -265,8 +274,8 @@
 
             <androidx.appcompat.widget.AppCompatImageView
                 android:id="@+id/radioButton1"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="@dimen/_16sdp"
+                android:layout_height="@dimen/_16sdp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
@@ -277,18 +286,19 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/_9sdp"
-                android:layout_marginTop="@dimen/_6sdp"
                 android:fontFamily="@font/roboto_medium"
                 android:includeFontPadding="false"
-                android:maxLines="1"
+                android:maxLines="2"
+                android:paddingVertical="@dimen/_2sdp"
                 android:text="3-day free trial"
                 android:textSize="@dimen/_14sdp"
                 app:autoSizeMaxTextSize="@dimen/_14sdp"
                 app:autoSizeMinTextSize="@dimen/_6sdp"
                 app:autoSizeTextType="uniform"
+                app:layout_constraintBottom_toBottomOf="@+id/tv4"
                 app:layout_constraintEnd_toStartOf="@id/tv4"
                 app:layout_constraintStart_toEndOf="@id/radioButton1"
-                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintTop_toTopOf="@id/tv4"
                 tools:ignore="HardcodedText" />
 
             <androidx.appcompat.widget.AppCompatTextView
@@ -304,7 +314,7 @@
                 app:autoSizeMaxTextSize="@dimen/_10sdp"
                 app:autoSizeMinTextSize="@dimen/_6sdp"
                 app:autoSizeTextType="uniform"
-                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintBottom_toBottomOf="@+id/tv5"
                 app:layout_constraintEnd_toStartOf="@id/tv5"
                 app:layout_constraintStart_toStartOf="@id/tv2"
                 app:layout_constraintTop_toBottomOf="@+id/tv2"
@@ -314,25 +324,27 @@
                 android:id="@+id/tv4"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/_6sdp"
                 android:fontFamily="@font/roboto_medium"
                 android:gravity="end|center_vertical"
                 android:includeFontPadding="false"
                 android:maxLines="1"
-                android:text="$2.99"
+                android:paddingVertical="@dimen/_2sdp"
+                android:text="23,000đ"
                 android:textSize="@dimen/_14sdp"
                 app:autoSizeMaxTextSize="@dimen/_16sdp"
                 app:autoSizeMinTextSize="@dimen/_9sdp"
                 app:autoSizeTextType="uniform"
-                app:layout_constraintBottom_toBottomOf="@id/tv2"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toEndOf="@+id/tv2"
-                app:layout_constraintTop_toTopOf="@id/tv2"
+                app:layout_constraintTop_toTopOf="parent"
                 tools:ignore="HardcodedText" />
 
             <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/tv5"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/_4sdp"
                 android:gravity="end"
                 android:includeFontPadding="false"
                 android:maxLines="2"
@@ -343,10 +355,10 @@
                 app:autoSizeMaxTextSize="@dimen/_10sdp"
                 app:autoSizeMinTextSize="@dimen/_5sdp"
                 app:autoSizeTextType="uniform"
-                app:layout_constraintBottom_toBottomOf="@id/tv3"
-                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="@id/tv4"
                 app:layout_constraintStart_toEndOf="@+id/tv3"
-                app:layout_constraintTop_toTopOf="@id/tv3"
+                app:layout_constraintTop_toBottomOf="@id/tv4"
                 tools:ignore="HardcodedText" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -412,6 +424,7 @@
             android:background="@drawable/bg_start_paywall_feature"
             android:fontFamily="@font/roboto_medium"
             android:includeFontPadding="false"
+            android:paddingHorizontal="@dimen/_4sdp"
             android:paddingVertical="@dimen/_10sdp"
             android:text="Start Free Trial"
             android:textColor="@color/white"
@@ -430,6 +443,7 @@
             android:gravity="center"
             android:includeFontPadding="false"
             android:maxLines="1"
+            android:paddingHorizontal="@dimen/_6sdp"
             android:paddingVertical="@dimen/_3sdp"
             android:text="or Use limited version"
             android:textColor="@color/dark_charcoal"

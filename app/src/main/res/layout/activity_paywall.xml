@@ -3,8 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:background="@drawable/bg_paywall"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@drawable/bg_paywall">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/main"
@@ -14,13 +14,15 @@
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/btnClose"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:srcCompat="@drawable/ic_delete"
-            app:layout_constraintEnd_toEndOf="parent"
-            android:layout_marginEnd="@dimen/_13sdp"
+            android:layout_width="@dimen/_28sdp"
+            android:layout_height="@dimen/_28sdp"
             android:layout_marginTop="@dimen/_11sdp"
-            app:layout_constraintTop_toTopOf="parent"/>
+            android:layout_marginEnd="@dimen/_13sdp"
+            android:padding="@dimen/_3sdp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:srcCompat="@drawable/ic_delete" />
+
         <com.airbnb.lottie.LottieAnimationView
             android:id="@+id/lottieShow"
             android:layout_width="0dp"
@@ -41,7 +43,7 @@
             android:layout_marginStart="@dimen/_12sdp"
             android:layout_marginTop="@dimen/_24sdp"
             app:layout_constraintDimensionRatio="210:25"
-            app:layout_constraintStart_toStartOf="@id/lottieShow"
+            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/lottieShow"
             app:layout_constraintWidth_percent="0.6"
             app:srcCompat="@drawable/app_name" />
@@ -51,14 +53,17 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/_10sdp"
+            android:layout_marginEnd="@dimen/_13sdp"
             android:fontFamily="@font/roboto_medium"
             android:maxLines="1"
+            android:paddingVertical="@dimen/_2sdp"
             android:paddingEnd="@dimen/_10sdp"
             android:text="Unlock all pro features. No ads."
             android:textSize="@dimen/_16sdp"
             app:autoSizeMaxTextSize="@dimen/_16sdp"
             app:autoSizeMinTextSize="@dimen/_9sdp"
             app:autoSizeTextType="uniform"
+            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="@id/appName"
             app:layout_constraintTop_toBottomOf="@id/appName"
             tools:ignore="HardcodedText,RtlSymmetry" />
@@ -66,13 +71,12 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/btn3Day"
             android:layout_width="0dp"
-            android:layout_height="0dp"
+            android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/_20sdp"
             android:layout_marginEnd="@dimen/_13sdp"
             android:background="@drawable/bg_selected_paywall"
             android:paddingHorizontal="@dimen/_8sdp"
             android:paddingVertical="@dimen/_6sdp"
-            app:layout_constraintDimensionRatio="328:65"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="@id/tv1"
             app:layout_constraintTop_toBottomOf="@id/tv1"
@@ -80,8 +84,8 @@
 
             <androidx.appcompat.widget.AppCompatImageView
                 android:id="@+id/radioButton1"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_width="@dimen/_16sdp"
+                android:layout_height="@dimen/_16sdp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
@@ -89,29 +93,30 @@
 
             <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/tv2"
-                android:includeFontPadding="false"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/_9sdp"
-                android:layout_marginTop="@dimen/_6sdp"
                 android:fontFamily="@font/roboto_medium"
-                android:maxLines="1"
+                android:includeFontPadding="false"
+                android:maxLines="2"
+                android:paddingVertical="@dimen/_2sdp"
                 android:text="3-day free trial"
                 android:textSize="@dimen/_14sdp"
                 app:autoSizeMaxTextSize="@dimen/_14sdp"
                 app:autoSizeMinTextSize="@dimen/_6sdp"
                 app:autoSizeTextType="uniform"
+                app:layout_constraintBottom_toBottomOf="@+id/tv4"
                 app:layout_constraintEnd_toStartOf="@id/tv4"
                 app:layout_constraintStart_toEndOf="@id/radioButton1"
-                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintTop_toTopOf="@id/tv4"
                 tools:ignore="HardcodedText" />
 
             <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/tv3"
                 android:layout_width="0dp"
-                android:includeFontPadding="false"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/roboto_regular"
+                android:includeFontPadding="false"
                 android:maxLines="2"
                 android:paddingVertical="@dimen/_2sdp"
                 android:text="Auto-renew. Cancel anytime"
@@ -119,7 +124,7 @@
                 app:autoSizeMaxTextSize="@dimen/_10sdp"
                 app:autoSizeMinTextSize="@dimen/_6sdp"
                 app:autoSizeTextType="uniform"
-                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintBottom_toBottomOf="@+id/tv5"
                 app:layout_constraintEnd_toStartOf="@id/tv5"
                 app:layout_constraintStart_toStartOf="@id/tv2"
                 app:layout_constraintTop_toBottomOf="@+id/tv2"
@@ -128,40 +133,42 @@
             <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/tv4"
                 android:layout_width="0dp"
-                android:includeFontPadding="false"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/_6sdp"
                 android:fontFamily="@font/roboto_medium"
                 android:gravity="end|center_vertical"
+                android:includeFontPadding="false"
                 android:maxLines="1"
+                android:paddingVertical="@dimen/_2sdp"
                 android:text="23,000đ"
                 android:textSize="@dimen/_14sdp"
                 app:autoSizeMaxTextSize="@dimen/_16sdp"
                 app:autoSizeMinTextSize="@dimen/_9sdp"
                 app:autoSizeTextType="uniform"
-                app:layout_constraintBottom_toBottomOf="@id/tv2"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toEndOf="@+id/tv2"
-                app:layout_constraintTop_toTopOf="@id/tv2"
+                app:layout_constraintTop_toTopOf="parent"
                 tools:ignore="HardcodedText" />
 
             <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/tv5"
                 android:layout_width="0dp"
-                android:includeFontPadding="false"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/_4sdp"
                 android:gravity="end"
+                android:includeFontPadding="false"
                 android:maxLines="2"
                 android:paddingVertical="@dimen/_2sdp"
-                android:text="per week after"
+                android:text="per week after trial"
                 android:textSize="@dimen/_10sdp"
                 android:textStyle="italic"
                 app:autoSizeMaxTextSize="@dimen/_10sdp"
                 app:autoSizeMinTextSize="@dimen/_5sdp"
                 app:autoSizeTextType="uniform"
-                app:layout_constraintBottom_toBottomOf="@id/tv3"
-                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="@id/tv4"
                 app:layout_constraintStart_toEndOf="@+id/tv3"
-                app:layout_constraintTop_toTopOf="@id/tv3"
+                app:layout_constraintTop_toBottomOf="@id/tv4"
                 tools:ignore="HardcodedText" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -185,38 +192,34 @@
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/btnMonthly"
             android:layout_width="0dp"
-            android:layout_height="0dp"
+            android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/_9sdp"
             android:background="@drawable/bg_unselected_paywall"
             android:paddingHorizontal="@dimen/_8sdp"
             android:paddingVertical="@dimen/_6sdp"
-            app:layout_constraintDimensionRatio="328:65"
             app:layout_constraintEnd_toEndOf="@id/btn3Day"
             app:layout_constraintStart_toStartOf="@id/btn3Day"
             app:layout_constraintTop_toBottomOf="@id/btn3Day"
             app:layout_constraintWidth_percent="0.93">
 
-            <include
-                layout="@layout/item_paywall" />
+            <include layout="@layout/item_paywall" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/btnLifetime"
             android:layout_width="0dp"
-            android:layout_height="0dp"
+            android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/_9sdp"
             android:background="@drawable/bg_unselected_paywall"
             android:paddingHorizontal="@dimen/_8sdp"
             android:paddingVertical="@dimen/_6sdp"
-            app:layout_constraintDimensionRatio="328:65"
             app:layout_constraintEnd_toEndOf="@id/btnMonthly"
             app:layout_constraintStart_toStartOf="@id/btnMonthly"
             app:layout_constraintTop_toBottomOf="@id/btnMonthly"
             app:layout_constraintWidth_percent="0.93">
 
-            <include
-                layout="@layout/item_paywall" />
+            <include layout="@layout/item_paywall" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -225,11 +228,12 @@
             style="@android:style/Widget.Button"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:includeFontPadding="false"
             android:layout_marginTop="@dimen/_16sdp"
             android:background="@drawable/bg_claim_offer"
             android:fontFamily="@font/roboto_medium"
-            android:paddingVertical="@dimen/_10sdp"
+            android:includeFontPadding="false"
+            android:paddingHorizontal="@dimen/_6sdp"
+            android:paddingVertical="@dimen/_14sdp"
             android:text="Start Free Trial"
             android:textColor="@color/white"
             android:textSize="@dimen/_18sdp"
@@ -243,14 +247,15 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/_8sdp"
+            android:fontFamily="@font/roboto_regular"
             android:gravity="center"
-            android:maxLines="1"
             android:includeFontPadding="false"
+            android:maxLines="1"
+            android:paddingHorizontal="@dimen/_6sdp"
             android:paddingVertical="@dimen/_3sdp"
             android:text="or Use limited version"
             android:textColor="#C81212"
-            android:fontFamily="@font/roboto_regular"
-            android:textSize="@dimen/_12sdp"
+            android:textSize="@dimen/_14sdp"
             app:autoSizeMaxTextSize="@dimen/_12sdp"
             app:autoSizeMinTextSize="@dimen/_6sdp"
             app:autoSizeTextType="uniform"
