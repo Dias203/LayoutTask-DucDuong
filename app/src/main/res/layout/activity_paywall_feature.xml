@@ -329,8 +329,9 @@
                 android:gravity="end|center_vertical"
                 android:includeFontPadding="false"
                 android:maxLines="1"
+                android:paddingHorizontal="@dimen/_2sdp"
                 android:paddingVertical="@dimen/_2sdp"
-                android:text="23,000đ"
+                android:text="$2.99"
                 android:textSize="@dimen/_14sdp"
                 app:autoSizeMaxTextSize="@dimen/_16sdp"
                 app:autoSizeMinTextSize="@dimen/_9sdp"
@@ -343,6 +344,7 @@
             <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/tv5"
                 android:layout_width="0dp"
+                android:paddingHorizontal="@dimen/_2sdp"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="@dimen/_4sdp"
                 android:gravity="end"
