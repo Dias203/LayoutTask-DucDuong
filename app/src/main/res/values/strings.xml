@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_name">DucDuongTrainningEco</string>
+    <string name="app">S2Note</string>
+    <string name="text_remove_ads">Remove Ads for the\nBest Experience</string>
+    <string name="current_price">$27.99</string>
+    <string name="old_price">$32.99</string>
+    <string name="policy">By subscribing, you agree to our Privacy Policy</string>
+    <string name="life_time">Lifetime</string>
+    <string name="monthly">Monthly</string>
+    <string name="remove_ads">Remove Ads for the</string>
+    <string name="best_exp">Best Experience</string>
+    <string name="seven_day">7-Day</string>
+    <string name="best_offer">Best Offer</string>
+    <string name="onetime_purchase">Onetime Purchase</string>
+    <string name="_continue">Continue</string>
+    <string name="full_text">
+    By continuing you agree to our Terms and Privacy policies:\n
+    • Subscription gives you access to Vivishow\'s premium features, all ads will be removed.\n
+    • Subscription plans are automatically renewed and can be canceled anytime in Subscriptions on Google Play.\n
+    • You won’t be charged if subscription is canceled before trial period ends.\n
+    • Subscription is not required to use Vivishow.</string>
+    <string name="black_friday_offer">Black Friday Offer!</string>
+    <string name="percent">Get 40% Off</string>
+</resources>

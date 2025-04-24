@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Các giá trị âm bổ sung -->
+    <dimen name="_minus65sdp">-65dp</dimen>
+    <dimen name="_minus66sdp">-66dp</dimen>
+    <dimen name="_minus100sdp">-100dp</dimen>
+    <!-- ... -->
+</resources>

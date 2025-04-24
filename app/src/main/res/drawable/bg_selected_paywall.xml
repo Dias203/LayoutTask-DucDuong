@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Lớp viền gradient bên ngoài -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:startColor="#E5241C"
+                android:endColor="#FF6544"/>
+            <corners android:radius="@dimen/_10sdp" />
+        </shape>
+    </item>
+
+    <!-- Lớp nền trắng bên trong -->
+    <item android:left="2dp" android:top="2dp" android:right="2dp" android:bottom="2dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/white" />
+            <corners android:radius="@dimen/_10sdp" />
+        </shape>
+    </item>
+</layer-list>

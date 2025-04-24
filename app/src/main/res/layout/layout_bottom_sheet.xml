@@ -1,0 +1,241 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nested_scroll_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <androidx.appcompat.widget.AppCompatImageView
+            android:id="@+id/img_gift"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:scaleType="centerCrop"
+            app:layout_constraintDimensionRatio="360:246"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:srcCompat="@drawable/img_gift_1" />
+
+        <View
+            android:id="@+id/lineConstraint"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/_1sdp"
+            app:layout_constraintBottom_toBottomOf="@id/img_gift"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="@id/img_gift"
+            app:layout_constraintVertical_bias="0.625" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/BottomSheet"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_offer"
+            android:elevation="@dimen/_4sdp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/lineConstraint">
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/tv1"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/_13sdp"
+                android:layout_marginTop="@dimen/_13sdp"
+                android:fontFamily="@font/roboto_medium"
+                android:gravity="center_horizontal"
+                android:includeFontPadding="false"
+                android:paddingVertical="@dimen/_2sdp"
+                android:text="Black Friday Offer!"
+                android:textColor="@color/dark_charcoal"
+                android:textSize="@dimen/_14sdp"
+                app:layout_constraintBottom_toTopOf="@id/tv2"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:ignore="HardcodedText" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/tv2"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/_13sdp"
+                android:fontFamily="@font/roboto_bold"
+                android:gravity="center"
+                android:includeFontPadding="false"
+                android:maxLines="2"
+                android:paddingHorizontal="@dimen/_6sdp"
+                android:paddingVertical="@dimen/_2sdp"
+                android:text="Get 40% Off"
+                android:textColor="#F34732"
+                android:textSize="@dimen/_42sdp"
+                app:autoSizeMaxTextSize="@dimen/_42sdp"
+                app:autoSizeMinTextSize="@dimen/_20sdp"
+                app:autoSizeTextType="uniform"
+                app:layout_constraintEnd_toEndOf="@id/tv1"
+                app:layout_constraintStart_toStartOf="@id/tv1"
+                app:layout_constraintTop_toBottomOf="@id/tv1"
+                tools:ignore="HardcodedText"
+                tools:text="Get 40% Offafdadsfaadfasdadfadadfadfads" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/tv3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/_13sdp"
+                android:autoSizeTextType="uniform"
+                android:fontFamily="@font/roboto_medium"
+                android:gravity="center_horizontal"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:paddingVertical="@dimen/_2sdp"
+                android:text="Unlimited editing experience"
+                android:textColor="@color/dark_charcoal"
+                android:textSize="@dimen/_14sdp"
+                app:autoSizeMaxTextSize="@dimen/_14sdp"
+                app:autoSizeMinTextSize="@dimen/_9sdp"
+                app:autoSizeStepGranularity="@dimen/_1sdp"
+                app:layout_constraintEnd_toEndOf="@id/tv2"
+                app:layout_constraintStart_toStartOf="@id/tv2"
+                app:layout_constraintTop_toBottomOf="@id/tv2"
+                tools:ignore="HardcodedText,UnusedAttribute" />
+
+            <androidx.appcompat.widget.AppCompatImageView
+                android:id="@+id/bgDiscount"
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:layout_marginTop="@dimen/_15sdp"
+                app:layout_constraintDimensionRatio="242:89"
+                app:layout_constraintEnd_toEndOf="@id/tv3"
+                app:layout_constraintStart_toStartOf="@id/tv3"
+                app:layout_constraintTop_toBottomOf="@id/tv3"
+                app:layout_constraintWidth_percent="0.625"
+                app:srcCompat="@drawable/bg_discount" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/tvOldPrice"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/_4sdp"
+                android:layout_marginTop="@dimen/_9sdp"
+                android:fontFamily="@font/roboto_medium"
+                android:gravity="center_horizontal"
+                android:includeFontPadding="false"
+                android:text="$19.99/week"
+                android:textColor="#9E9E9E"
+                android:textSize="@dimen/_15sdp"
+                app:layout_constraintEnd_toEndOf="@id/bgDiscount"
+                app:layout_constraintStart_toStartOf="@id/bgDiscount"
+                app:layout_constraintTop_toTopOf="@id/bgDiscount"
+                tools:ignore="HardcodedText" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/roboto_bold"
+                android:gravity="center_horizontal"
+                android:includeFontPadding="false"
+                android:text="$4.99/week"
+                android:textColor="@color/dark_charcoal"
+                android:textSize="@dimen/_20sdp"
+                app:layout_constraintBottom_toBottomOf="@id/bgDiscount"
+                app:layout_constraintEnd_toEndOf="@id/tvOldPrice"
+                app:layout_constraintStart_toStartOf="@id/tvOldPrice"
+                app:layout_constraintTop_toBottomOf="@id/tvOldPrice"
+                tools:ignore="HardcodedText" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/tv4"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/_13sdp"
+                android:layout_marginTop="16dp"
+                android:ellipsize="end"
+                android:fontFamily="@font/roboto_regular"
+                android:gravity="center_horizontal"
+                android:maxLines="2"
+                android:paddingHorizontal="@dimen/_6sdp"
+                android:paddingVertical="@dimen/_2sdp"
+                android:text="$29 first year, then $40/year. Auto renew. Cancel anytime"
+                android:textColor="@color/dark_charcoal"
+                android:textSize="@dimen/_10sdp"
+                app:autoSizeMaxTextSize="@dimen/_10sdp"
+                app:autoSizeMinTextSize="@dimen/_6sdp"
+                app:autoSizeStepGranularity="@dimen/_1sdp"
+                app:autoSizeTextType="uniform"
+                app:layout_constraintEnd_toEndOf="@id/bgDiscount"
+                app:layout_constraintStart_toStartOf="@id/bgDiscount"
+                app:layout_constraintTop_toBottomOf="@id/bgDiscount"
+                tools:ignore="HardcodedText,UnusedAttribute" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/btnClaimOffer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/_13sdp"
+                android:layout_marginTop="@dimen/_13sdp"
+                android:background="@drawable/bg_claim_offer"
+                android:fontFamily="@font/roboto_medium"
+                android:gravity="center"
+                android:maxLines="1"
+                android:paddingVertical="@dimen/_12sdp"
+                android:text="Claim Offer Now"
+                android:textColor="@color/white"
+                android:textSize="@dimen/_14sdp"
+                app:autoSizeMaxTextSize="@dimen/_14sdp"
+                app:autoSizeMinTextSize="@dimen/_10sdp"
+                app:autoSizeStepGranularity="@dimen/_1sdp"
+                app:autoSizeTextType="uniform"
+                app:layout_constraintBottom_toTopOf="@id/tv5"
+                app:layout_constraintEnd_toEndOf="@id/tv4"
+                app:layout_constraintStart_toStartOf="@id/tv4"
+                app:layout_constraintTop_toBottomOf="@id/tv4"
+                tools:ignore="HardcodedText" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/tv5"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/_9sdp"
+                android:layout_marginTop="@dimen/_10sdp"
+                android:fontFamily="@font/roboto_medium"
+                android:gravity="center_horizontal"
+                android:maxLines="1"
+                android:text="I'll let this deal slip away"
+                android:textColor="@color/dark_charcoal"
+                android:textSize="@dimen/_13sdp"
+                app:autoSizeMaxTextSize="@dimen/_10sdp"
+                app:autoSizeMinTextSize="@dimen/_6sdp"
+                app:autoSizeStepGranularity="@dimen/_1sdp"
+                app:layout_constraintEnd_toEndOf="@id/btnClaimOffer"
+                app:layout_constraintStart_toStartOf="@id/btnClaimOffer"
+                app:layout_constraintTop_toBottomOf="@id/btnClaimOffer"
+                tools:ignore="HardcodedText" />
+
+            <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/tv6"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/_9sdp"
+                android:layout_marginTop="@dimen/_10sdp"
+                android:layout_marginBottom="@dimen/_13sdp"
+                android:fontFamily="@font/roboto_regular"
+                android:paddingVertical="@dimen/_2sdp"
+                android:textAlignment="viewStart"
+                android:textColor="@color/dark_charcoal"
+                android:textSize="@dimen/_10sdp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="@id/tv5"
+                app:layout_constraintStart_toStartOf="@id/tv5"
+                app:layout_constraintTop_toBottomOf="@id/tv5"
+                tools:text="By continuing you agree to our Terms and Privacy policies:\nSubscription gives you access to Vivishow's premium features, all ads will be removed.\nSubscription plans are automatically renewed and can be canceled anytime in Subscriptions on Google Play.\nYou won't be charged if subscription is canceled before trial period ends.\nSubscription is not required to use Vivishow." />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.core.widget.NestedScrollView>
