@@ -43,41 +43,8 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
         initUI()
         loadData()
 
-        /**
-        // Lắng nghe dữ liệu ProductDetails từ BillingManager
-        lifecycleScope.launch {
-            billingManager.productDetailsMap.collectLatest { map ->
-                productDetailsMap = map // Gán dữ liệu product details mới nhất
-
-                if (map.isNotEmpty()) {
-                    binding.btnStartFreeTrial.setOnClickListener {
-                        selectedProductId?.let { productId ->
-                            // Nếu đã chọn plan, lấy ProductDetails tương ứng
-                            productDetailsMap[productId]?.let { productDetails ->
-                                // Bắt đầu quy trình thanh toán sản phẩm đã chọn
-                                billingManager.launchBillingFlow(productDetails)
-                            } ?: run {
-                                // Nếu không tìm thấy ProductDetails, báo lỗi
-                                Toast.makeText(
-                                    applicationContext,
-                                    "Product details not found for $productId",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        } ?: run {
-                            // Nếu chưa chọn plan nào, yêu cầu người dùng chọn
-                            Toast.makeText(
-                                applicationContext,
-                                "Please select a plan first",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
-                }
-            }
-        }
-        */
     }
+
     private fun initUI() {
         binding = ActivityPaywallBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -88,6 +55,7 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
         setupTermsAndPrivacyText()
         setupPlanSelection()
     }
+
     private fun loadData() {
         loadPurchasedProducts()
         observeBillingData()
@@ -114,17 +82,26 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
             updatePlanSelectionBasedOnPurchases()
         }
     }
+
     private fun setupBillingButton(map: Map<String, ProductDetails>) {
         if (map.isNotEmpty()) {
             binding.btnStartFreeTrial.setOnClickListener {
                 selectedProductId?.let { productId ->
                     // Tìm gói subscription hiện tại
-                    val currentSubscription = purchasedProducts.firstOrNull { it in listOf("vip_month", "vip_year") }
+                    val currentSubscription =
+                        purchasedProducts.firstOrNull { it in listOf("vip_month", "vip_year") }
 
                     productDetailsMap[productId]?.let { productDetails ->
-                        if (currentSubscription != null && productId in listOf("vip_month", "vip_year") && productId != currentSubscription) {
+                        if (currentSubscription != null && productId in listOf(
+                                "vip_month",
+                                "vip_year"
+                            ) && productId != currentSubscription
+                        ) {
                             // Gọi hàm nâng cấp
-                            billingManager.launchBillingFlowForUpgrade(productDetails, currentSubscription)
+                            billingManager.launchBillingFlowForUpgrade(
+                                productDetails,
+                                currentSubscription
+                            )
                         } else {
                             // Gọi hàm mua mới
                             billingManager.launchBillingFlow(productDetails)
@@ -147,37 +124,6 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
         }
     }
 
-    /**
-    private fun updatePlanSelectionBasedOnPurchases() {
-        val buttons = listOf(
-            binding.btnMonthly to "vip_month",
-            binding.btnYearly to "vip_year",
-            binding.btnLifetime to "musicplayer_vip_lifetime"
-        )
-
-        for ((button, productId) in buttons) {
-            if (purchasedProducts.contains(productId)) {
-                button.disablePurchasedButton()
-                if (productId == "vip_month") {
-                    binding.bestDeal.apply {
-                        text = "Purchased"
-                        setBackgroundResource(R.drawable.bg_disable)
-                    }
-                }
-            } else {
-                // Nếu chưa mua, có thể cần reset lại trạng thái unselected nếu cần
-                val isCurrentlySelected = selectedProductId == productId
-                val background = if (isCurrentlySelected) R.drawable.bg_selected_paywall else R.drawable.bg_unselected_paywall
-                val icon = if (isCurrentlySelected) R.drawable.ic_checked else R.drawable.ic_uncheck
-                button.setBackgroundResource(background)
-                button.findViewById<AppCompatImageView>(R.id.radioButton1).setImageResource(icon)
-                button.isEnabled = true
-                button.alpha = 1.0f
-            }
-        }
-    }
-
-    */
     private fun updatePlanSelectionBasedOnPurchases() {
         val buttons = listOf(
             binding.btnMonthly to "vip_month",
@@ -188,7 +134,11 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
         // Tìm gói subscription hiện tại
         var currentSubscription: String? = null
         for ((_, productId) in buttons) {
-            if (purchasedProducts.contains(productId) && productId in listOf("vip_month", "vip_year")) {
+            if (purchasedProducts.contains(productId) && productId in listOf(
+                    "vip_month",
+                    "vip_year"
+                )
+            ) {
                 currentSubscription = productId
                 break
             }
@@ -206,7 +156,8 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                 }
             } else {
                 val isCurrentlySelected = selectedProductId == productId
-                val background = if (isCurrentlySelected) R.drawable.bg_selected_paywall else R.drawable.bg_unselected_paywall
+                val background =
+                    if (isCurrentlySelected) R.drawable.bg_selected_paywall else R.drawable.bg_unselected_paywall
                 val icon = if (isCurrentlySelected) R.drawable.ic_checked else R.drawable.ic_uncheck
                 button.setBackgroundResource(background)
                 button.findViewById<AppCompatImageView>(R.id.radioButton1).setImageResource(icon)
@@ -214,8 +165,13 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                 button.alpha = 1.0f
 
                 // Nếu có gói subscription hiện tại, hiển thị tùy chọn nâng cấp
-                if (currentSubscription != null && productId in listOf("vip_month", "vip_year") && productId != currentSubscription) {
-                    button.findViewById<TextView>(R.id.tv2).text = "Upgrade to ${productId.replace("vip_", "").capitalize()}"
+                if (currentSubscription != null && productId in listOf(
+                        "vip_month",
+                        "vip_year"
+                    ) && productId != currentSubscription
+                ) {
+                    button.findViewById<TextView>(R.id.tv2).text =
+                        "Upgrade to ${productId.replace("vip_", "").capitalize()}"
                 }
             }
         }
@@ -241,24 +197,6 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
         }
     }
 
-    /**
-    private fun setupPlanSelection() {
-        binding.btnMonthly.setOnClickListener {
-            selectPlan(binding.btnMonthly)
-            selectedProductId = "vip_month"
-        }
-
-        binding.btnYearly.setOnClickListener {
-            selectPlan(binding.btnYearly)
-            selectedProductId = "vip_year"
-        }
-
-        binding.btnLifetime.setOnClickListener {
-            selectPlan(binding.btnLifetime)
-            selectedProductId = "musicplayer_vip_lifetime"
-        }
-    }
-    */
     private fun setupPlanSelection() {
         binding.btnMonthly.setOnClickListener {
             if (!purchasedProducts.contains("vip_month")) {
@@ -295,7 +233,8 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                 continue
             }
             val isSelected = button == selectedBtn
-            val background = if (isSelected) R.drawable.bg_selected_paywall else R.drawable.bg_unselected_paywall
+            val background =
+                if (isSelected) R.drawable.bg_selected_paywall else R.drawable.bg_unselected_paywall
             val icon = if (isSelected) R.drawable.ic_checked else R.drawable.ic_uncheck
             button.setBackgroundResource(background)
             button.findViewById<AppCompatImageView>(R.id.radioButton1).setImageResource(icon)
@@ -403,6 +342,7 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                     setBackgroundResource(R.drawable.bg_disable)
                 }
             }
+
             "vip_year" -> binding.btnYearly.disablePurchasedButton()
             "musicplayer_vip_lifetime" -> binding.btnLifetime.disablePurchasedButton()
         }

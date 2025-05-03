@@ -34,10 +34,8 @@ class BillingManager(
     private val _productDetailsMap = MutableStateFlow<Map<String, ProductDetails>>(emptyMap())
     val productDetailsMap: StateFlow<Map<String, ProductDetails>> = _productDetailsMap.asStateFlow()
     private val _purchasedProductIds = MutableStateFlow<Set<String>>(emptySet())
-    val purchasedProductIds: StateFlow<Set<String>> = _purchasedProductIds.asStateFlow()
 
     private val _purchases = MutableStateFlow<List<Purchase>>(emptyList())
-    val purchases: StateFlow<List<Purchase>> = _purchases.asStateFlow()
 
     private val billingClient = BillingClient.newBuilder(context)
         .setListener(this)
@@ -98,7 +96,10 @@ class BillingManager(
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     allProductDetails.addAll(productDetailsList)
                 } else {
-                    Log.e(TAG, "Failed to retrieve SUBS product details: ${billingResult.debugMessage}")
+                    Log.e(
+                        TAG,
+                        "Failed to retrieve SUBS product details: ${billingResult.debugMessage}"
+                    )
                 }
                 subsQueryCompleted = true
                 checkAndProcess()
@@ -121,7 +122,10 @@ class BillingManager(
                 if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                     allProductDetails.addAll(productDetailsList)
                 } else {
-                    Log.e(TAG, "Failed to retrieve INAPP product details: ${billingResult.debugMessage}")
+                    Log.e(
+                        TAG,
+                        "Failed to retrieve INAPP product details: ${billingResult.debugMessage}"
+                    )
                 }
                 inappQueryCompleted = true
                 checkAndProcess()
@@ -184,14 +188,20 @@ class BillingManager(
                 BillingClient.ProductType.SUBS -> {
                     product.subscriptionOfferDetails?.firstOrNull()?.let { offerDetails ->
                         offerDetails.pricingPhases.pricingPhaseList.firstOrNull()?.let { phase ->
-                            Log.d(TAG, "Price: ${phase.formattedPrice}, Period: ${phase.billingPeriod}")
+                            Log.d(
+                                TAG,
+                                "Price: ${phase.formattedPrice}, Period: ${phase.billingPeriod}"
+                            )
                         } ?: Log.e(TAG, "No pricing phases available for ${product.productId}")
                     } ?: Log.e(TAG, "No subscription offer details for ${product.productId}")
                 }
 
                 BillingClient.ProductType.INAPP -> {
                     product.oneTimePurchaseOfferDetails?.let { oneTimeOffer ->
-                        Log.d(TAG, "INAPP - Price: ${oneTimeOffer.formattedPrice} for ${product.productId}")
+                        Log.d(
+                            TAG,
+                            "INAPP - Price: ${oneTimeOffer.formattedPrice} for ${product.productId}"
+                        )
                     } ?: Log.e(TAG, "No inapp offer details for ${product.productId}")
                 }
 
