@@ -69,7 +69,7 @@
             tools:ignore="HardcodedText,RtlSymmetry" />
 
         <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/btn3Day"
+            android:id="@+id/btnMonthly"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/_20sdp"
@@ -100,7 +100,7 @@
                 android:includeFontPadding="false"
                 android:maxLines="2"
                 android:paddingVertical="@dimen/_2sdp"
-                android:text="3-day free trial"
+                android:text="Vip Month"
                 android:textSize="@dimen/_14sdp"
                 app:autoSizeMaxTextSize="@dimen/_14sdp"
                 app:autoSizeMinTextSize="@dimen/_6sdp"
@@ -140,7 +140,7 @@
                 android:includeFontPadding="false"
                 android:maxLines="1"
                 android:paddingVertical="@dimen/_2sdp"
-                android:text="23,000đ"
+                android:text="28,080đ"
                 android:textSize="@dimen/_14sdp"
                 app:autoSizeMaxTextSize="@dimen/_16sdp"
                 app:autoSizeMinTextSize="@dimen/_9sdp"
@@ -159,7 +159,7 @@
                 android:includeFontPadding="false"
                 android:maxLines="2"
                 android:paddingVertical="@dimen/_2sdp"
-                android:text="per week after trial"
+                android:text="per year"
                 android:textSize="@dimen/_10sdp"
                 android:textStyle="italic"
                 app:autoSizeMaxTextSize="@dimen/_10sdp"
@@ -173,6 +173,7 @@
         </androidx.constraintlayout.widget.ConstraintLayout>
 
         <androidx.appcompat.widget.AppCompatTextView
+            android:id="@+id/bestDeal"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginEnd="@dimen/_10sdp"
@@ -184,22 +185,22 @@
             android:text="BEST DEAL"
             android:textColor="@color/white"
             android:textSize="@dimen/_8sdp"
-            app:layout_constraintBottom_toTopOf="@id/btn3Day"
-            app:layout_constraintEnd_toEndOf="@id/btn3Day"
-            app:layout_constraintTop_toTopOf="@id/btn3Day"
+            app:layout_constraintBottom_toTopOf="@id/btnMonthly"
+            app:layout_constraintEnd_toEndOf="@id/btnMonthly"
+            app:layout_constraintTop_toTopOf="@id/btnMonthly"
             tools:ignore="HardcodedText" />
 
         <androidx.constraintlayout.widget.ConstraintLayout
-            android:id="@+id/btnMonthly"
+            android:id="@+id/btnYearly"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/_9sdp"
             android:background="@drawable/bg_unselected_paywall"
             android:paddingHorizontal="@dimen/_8sdp"
             android:paddingVertical="@dimen/_6sdp"
-            app:layout_constraintEnd_toEndOf="@id/btn3Day"
-            app:layout_constraintStart_toStartOf="@id/btn3Day"
-            app:layout_constraintTop_toBottomOf="@id/btn3Day"
+            app:layout_constraintEnd_toEndOf="@id/btnMonthly"
+            app:layout_constraintStart_toStartOf="@id/btnMonthly"
+            app:layout_constraintTop_toBottomOf="@id/btnMonthly"
             app:layout_constraintWidth_percent="0.93">
 
             <include layout="@layout/item_paywall" />
@@ -214,9 +215,9 @@
             android:background="@drawable/bg_unselected_paywall"
             android:paddingHorizontal="@dimen/_8sdp"
             android:paddingVertical="@dimen/_6sdp"
-            app:layout_constraintEnd_toEndOf="@id/btnMonthly"
-            app:layout_constraintStart_toStartOf="@id/btnMonthly"
-            app:layout_constraintTop_toBottomOf="@id/btnMonthly"
+            app:layout_constraintEnd_toEndOf="@id/btnYearly"
+            app:layout_constraintStart_toStartOf="@id/btnYearly"
+            app:layout_constraintTop_toBottomOf="@id/btnYearly"
             app:layout_constraintWidth_percent="0.93">
 
             <include layout="@layout/item_paywall" />

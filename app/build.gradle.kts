@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.duongduc.layouttest"
+    namespace = "com.eco.musicplayer.audioplayer.music"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.duongduc.layouttest"
+        applicationId = "com.eco.musicplayer.audioplayer.music"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
@@ -46,6 +46,7 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.lifecycle.runtime.android)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -56,5 +57,7 @@ dependencies {
     val lottieVersion = "3.4.0"
     implementation ("com.airbnb.android:lottie:$lottieVersion")
 
-
+    implementation(libs.billing)
+    implementation(libs.billing.ktx) // extension cho Kotlin
+    implementation(libs.billing.ktx.v610)
 }

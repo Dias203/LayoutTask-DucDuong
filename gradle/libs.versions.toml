@@ -1,5 +1,7 @@
 [versions]
 agp = "8.6.1"
+billing = "7.1.1"
+billingKtx = "6.1.0"
 glideVersion = "4.16.0"
 kotlin = "1.9.0"
 coreKtx = "1.16.0"
@@ -12,9 +14,13 @@ material = "1.12.0"
 activity = "1.10.1"
 constraintlayout = "2.2.1"
 sdpAndroid = "1.1.1"
+lifecycleRuntimeAndroid = "2.8.7"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+billing = { module = "com.android.billingclient:billing", version.ref = "billing" }
+billing-ktx = { module = "com.android.billingclient:billing-ktx", version.ref = "billing" }
+billing-ktx-v610 = { module = "com.android.billingclient:billing-ktx", version.ref = "billingKtx" }
 github-glide = { module = "com.github.bumptech.glide:glide", version.ref = "glideVersion" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
@@ -25,6 +31,7 @@ material = { group = "com.google.android.material", name = "material", version.r
 androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 sdp-android = { module = "com.intuit.sdp:sdp-android", version.ref = "sdpAndroid" }
+androidx-lifecycle-runtime-android = { group = "androidx.lifecycle", name = "lifecycle-runtime-android", version.ref = "lifecycleRuntimeAndroid" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

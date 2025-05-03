@@ -15,10 +15,11 @@
     <string name="_continue">Continue</string>
     <string name="full_text">
     By continuing you agree to our Terms and Privacy policies:\n
-    • Subscription gives you access to Vivishow\'s premium features, all ads will be removed.\n
-    • Subscription plans are automatically renewed and can be canceled anytime in Subscriptions on Google Play.\n
-    • You won’t be charged if subscription is canceled before trial period ends.\n
-    • Subscription is not required to use Vivishow.</string>
+    \t•Subscription gives you access to Vivishow\'s premium features, all ads will be removed.\n
+    \t•Subscription plans are automatically renewed and can be canceled anytime in Subscriptions on Google Play.\n
+    \t•You won’t be charged if subscription is canceled before trial period ends.\n
+    \t•Subscription is not required to use Vivishow.
+    </string>
     <string name="black_friday_offer">Black Friday Offer!</string>
     <string name="percent">Get 40% Off</string>
 </resources>

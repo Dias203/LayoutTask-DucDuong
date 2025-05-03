@@ -1,4 +1,4 @@
-package com.duongduc.layouttest
+package com.eco.musicplayer
 
 import org.junit.Test
 

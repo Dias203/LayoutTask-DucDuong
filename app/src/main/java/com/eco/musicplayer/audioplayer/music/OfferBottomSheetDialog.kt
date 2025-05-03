@@ -1,4 +1,4 @@
-package com.duongduc.layouttest
+package com.eco.musicplayer.audioplayer.music
 
 import android.content.Context
 import android.graphics.Color
@@ -12,7 +12,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
-import com.duongduc.layouttest.databinding.LayoutBottomSheetBinding
+import com.eco.musicplayer.audioplayer.music.databinding.LayoutBottomSheetBinding
 import com.google.android.material.bottomsheet.BottomSheetDialog
 
 class OfferBottomSheetDialog(context: Context) : BottomSheetDialog(context) {

@@ -1,4 +1,4 @@
-package com.duongduc.layouttest
+package com.eco.musicplayer.audioplayer.music
 
 import android.annotation.SuppressLint
 import android.graphics.Color
@@ -12,12 +12,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatImageView
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import com.duongduc.layouttest.databinding.ActivityPaywallFeatureBinding
+import com.eco.musicplayer.audioplayer.music.databinding.ActivityPaywallFeatureBinding
 
 class PaywallFeatureActivity : AppCompatActivity() {
     private lateinit var binding: ActivityPaywallFeatureBinding
