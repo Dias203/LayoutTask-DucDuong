@@ -159,7 +159,7 @@
                 android:includeFontPadding="false"
                 android:maxLines="2"
                 android:paddingVertical="@dimen/_2sdp"
-                android:text="per year"
+                android:text="per month"
                 android:textSize="@dimen/_10sdp"
                 android:textStyle="italic"
                 app:autoSizeMaxTextSize="@dimen/_10sdp"
@@ -206,6 +206,24 @@
             <include layout="@layout/item_paywall" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
+        <androidx.appcompat.widget.AppCompatTextView
+            android:id="@+id/bestDeal2"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/_10sdp"
+            android:background="@drawable/bg_best_deal"
+            android:drawableStart="@drawable/ic_bolt"
+            android:fontFamily="@font/roboto_bold"
+            android:paddingHorizontal="@dimen/_6sdp"
+            android:paddingVertical="@dimen/_3sdp"
+            android:text="BEST DEAL"
+            android:visibility="gone"
+            android:textColor="@color/white"
+            android:textSize="@dimen/_8sdp"
+            app:layout_constraintTop_toTopOf="@id/btnYearly"
+            app:layout_constraintBottom_toTopOf="@id/btnYearly"
+            app:layout_constraintEnd_toEndOf="@id/btnYearly"
+            tools:ignore="HardcodedText" />
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/btnLifetime"
@@ -223,6 +241,24 @@
             <include layout="@layout/item_paywall" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
+        <androidx.appcompat.widget.AppCompatTextView
+            android:id="@+id/bestDeal3"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/_10sdp"
+            android:background="@drawable/bg_best_deal"
+            android:drawableStart="@drawable/ic_bolt"
+            android:fontFamily="@font/roboto_bold"
+            android:paddingHorizontal="@dimen/_6sdp"
+            android:paddingVertical="@dimen/_3sdp"
+            android:text="BEST DEAL"
+            android:textColor="@color/white"
+            android:textSize="@dimen/_8sdp"
+            app:layout_constraintTop_toTopOf="@id/btnLifetime"
+            app:layout_constraintBottom_toTopOf="@id/btnLifetime"
+            app:layout_constraintEnd_toEndOf="@id/btnLifetime"
+            android:visibility="gone"
+            tools:ignore="HardcodedText" />
 
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/btnStartFreeTrial"

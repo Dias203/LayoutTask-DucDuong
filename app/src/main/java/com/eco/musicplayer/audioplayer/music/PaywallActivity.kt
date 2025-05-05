@@ -105,43 +105,66 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
         }
     }
 
+    private fun getSubscriptionLevel(productId: String): Int {
+        return when (productId) {
+            "vip_month" -> 1
+            "vip_year" -> 2
+            "musicplayer_vip_lifetime" -> 3
+            else -> 0 // Không phải gói subscription
+        }
+    }
+
+    private fun isUpgradeAllowed(currentProductId: String, newProductId: String): Boolean {
+        return getSubscriptionLevel(newProductId) > getSubscriptionLevel(currentProductId)
+    }
+
     /**
      * Gắn sự kiện click cho nút “Start Free Trial” để bắt đầu quy trình thanh toán.
      * Nếu đang có gói khác thì gọi nâng cấp (launchBillingFlowForUpgrade()).
      */
     private fun setupBillingButton() {
         binding.btnStartFreeTrial.setOnClickListener {
-            selectedProductId?.let { productId ->
-                productDetailsMap[productId]?.let { productDetails ->
+            selectedProductId?.let { newProductId ->
+                productDetailsMap[newProductId]?.let { productDetails ->
                     uiScope.launch {
                         val currentSubscription = purchasedProducts.value.firstOrNull {
                             it in listOf("vip_month", "vip_year")
                         }
 
-                        if (currentSubscription != null && productId in listOf(
+                        if (currentSubscription != null && newProductId in listOf(
                                 "vip_month",
                                 "vip_year"
-                            ) && productId != currentSubscription
-                        ) {
-                            billingManager.launchBillingFlowForUpgrade(
-                                productDetails,
-                                currentSubscription
                             )
+                        ) {
+                            // Kiểm tra nếu là nâng cấp
+                            if (isUpgradeAllowed(currentSubscription, newProductId)) {
+                                billingManager.launchBillingFlowForUpgrade(
+                                    productDetails,
+                                    currentSubscription
+                                )
+                            } else {
+                                Toast.makeText(
+                                    applicationContext,
+                                    "Bạn chỉ có thể nâng cấp lên gói cao hơn!",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         } else {
+                            // Nếu không phải subscription hoặc chưa có gói hiện tại, cho phép mua
                             billingManager.launchBillingFlow(productDetails)
                         }
                     }
                 } ?: run {
                     Toast.makeText(
                         applicationContext,
-                        "Product details not found for $productId",
+                        "Không tìm thấy thông tin gói!",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
             } ?: run {
                 Toast.makeText(
                     applicationContext,
-                    "Please select a plan first",
+                    "Vui lòng chọn gói trước!",
                     Toast.LENGTH_SHORT
                 ).show()
             }
@@ -159,53 +182,80 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
             binding.btnLifetime to "musicplayer_vip_lifetime"
         )
 
-        var currentSubscription: String? = null
-        for ((_, productId) in buttons) {
-            if (currentPurchasedProducts.contains(productId) && productId in listOf(
-                    "vip_month",
-                    "vip_year"
-                )
-            ) {
-                currentSubscription = productId
-                break
+        // Kiểm tra nếu đã mua Lifetime -> Disable tất cả gói khác (không ẩn)
+        if (currentPurchasedProducts.contains("musicplayer_vip_lifetime")) {
+            buttons.forEach { (button, productId) ->
+                if (productId == "musicplayer_vip_lifetime") {
+                    button.disablePurchasedButton() // Áp dụng hàm có sẵn
+                } else {
+                    button.isEnabled = false // Chỉ disable, không ẩn
+                    button.alpha = 0.5f // Làm mờ nhẹ để phân biệt
+                }
             }
+            binding.btnStartFreeTrial.apply {
+                isEnabled = false
+                text = "Purchased"
+            }
+            return
         }
 
-        for ((button, productId) in buttons) {
-            if (currentPurchasedProducts.contains(productId)) {
-                button.disablePurchasedButton()
-                if (productId == "vip_month") {
-                    binding.bestDeal.apply {
-                        text = "Purchased"
-                        setBackgroundResource(R.drawable.bg_disable)
+        // Xử lý các gói subscription thông thường
+        val currentSubscription = currentPurchasedProducts.firstOrNull { it in listOf("vip_month", "vip_year") }
+
+        buttons.forEach { (button, productId) ->
+            when {
+                // Nếu gói đã mua -> disable (dùng hàm có sẵn)
+                currentPurchasedProducts.contains(productId) -> {
+                    button.disablePurchasedButton()
+                    when (productId) {
+                        "vip_month" -> {
+                            binding.bestDeal.apply {
+                                text = "Purchased"
+                                setBackgroundResource(R.drawable.bg_disable)
+                            }
+                        }
+                        "vip_year" -> {
+                            binding.bestDeal2.apply {
+                                visibility = View.VISIBLE
+                                text = "Purchased"
+                                setBackgroundResource(R.drawable.bg_disable)
+                            }
+                        }
+                        else -> {
+                            binding.bestDeal3.apply {
+                                visibility = View.VISIBLE
+                                text = "Purchased"
+                                setBackgroundResource(R.drawable.bg_disable)
+                            }
+                        }
                     }
                 }
-            } else {
-                val isCurrentlySelected = selectedProductId == productId
-                val background =
-                    if (isCurrentlySelected) R.drawable.bg_selected_paywall else R.drawable.bg_unselected_paywall
-                val icon = if (isCurrentlySelected) R.drawable.ic_checked else R.drawable.ic_uncheck
-                button.setBackgroundResource(background)
-                button.findViewById<AppCompatImageView>(R.id.radioButton1).setImageResource(icon)
-                button.isEnabled = true
-                button.alpha = 1.0f
-
-                if (currentSubscription != null && productId in listOf(
-                        "vip_month",
-                        "vip_year"
-                    ) && productId != currentSubscription
-                ) {
-                    button.findViewById<TextView>(R.id.tv2).text =
-                        "Upgrade to ${productId.replace("vip_", "").capitalize()}"
+                // Nếu có gói hiện tại VÀ gói này thấp hơn -> disable (không ẩn)
+                currentSubscription != null && getSubscriptionLevel(productId) <= getSubscriptionLevel(currentSubscription) -> {
+                    button.isEnabled = false
+                    button.alpha = 0.5f
+                }
+                // Gói có thể chọn (nâng cấp hoặc mua mới)
+                else -> {
+                    val isSelected = selectedProductId == productId
+                    button.apply {
+                        setBackgroundResource(
+                            if (isSelected) R.drawable.bg_selected_paywall
+                            else R.drawable.bg_unselected_paywall
+                        )
+                        findViewById<AppCompatImageView>(R.id.radioButton1).setImageResource(
+                            if (isSelected) R.drawable.ic_checked
+                            else R.drawable.ic_uncheck
+                        )
+                        isEnabled = true
+                        alpha = 1.0f
+                    }
                 }
             }
         }
 
-        if (currentSubscription != null) {
-            binding.btnStartFreeTrial.text = "Upgrade Plan"
-        } else {
-            binding.btnStartFreeTrial.text = "Start Free Trial"
-        }
+        // Cập nhật text nút thanh toán
+        binding.btnStartFreeTrial.text = if (currentSubscription != null) "Upgrade Plan" else "Start Free Trial"
     }
 
     private fun setupInitialSelectedPlan() {
@@ -268,6 +318,10 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
             button.findViewById<AppCompatImageView>(R.id.radioButton1).setImageResource(icon)
         }
     }
+
+
+
+
 
     @SuppressLint("SetTextI18n")
     private fun setupPlanTexts() {
