@@ -21,120 +21,147 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.eco.musicplayer.audioplayer.music.databinding.ActivityPaywallBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class PaywallActivity : AppCompatActivity(), BillingListener {
-    private val billingManager by lazy {
-        BillingManager(this, application, this)
-    }
+    private var _billingManager: BillingManager? = null
+    private val billingManager: BillingManager
+        get() {
+            if (_billingManager == null) {
+                _billingManager = BillingManager(this, application, this)
+            }
+            return _billingManager!!
+        }
     private lateinit var binding: ActivityPaywallBinding
     private var productDetailsMap: Map<String, ProductDetails> = emptyMap()
     private var selectedProductId: String? = null
-    private val purchasedProducts = mutableSetOf<String>()
+    private val _purchasedProducts = MutableStateFlow<Set<String>>(emptySet())
+    private val purchasedProducts: StateFlow<Set<String>> = _purchasedProducts
     private val PREFS_NAME = "BillingPrefs"
     private val PURCHASED_PRODUCTS_KEY = "purchasedProducts"
     private val prefs by lazy { getSharedPreferences(PREFS_NAME, MODE_PRIVATE) }
-
+    private val uiScope = lifecycleScope
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        initUI()
-        loadData()
-
-    }
-
-    private fun initUI() {
         binding = ActivityPaywallBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        initUI()
+        loadInitialData()
+    }
+
+    private fun initUI() {
         setupInitialSelectedPlan()
         setupPlanTexts()
         setupLimitedVersionText()
         setupTermsAndPrivacyText()
         setupPlanSelection()
+        setupBillingButton() // Gọi setupBillingButton ở đây, logic sẽ chạy khi có productDetails
     }
 
-    private fun loadData() {
-        loadPurchasedProducts()
-        observeBillingData()
+    /**
+     * Tải các sản phẩm đã mua từ SharedPreferences, sau đó quan sát dữ liệu billing.
+     */
+    private fun loadInitialData() {
+        // Tải sản phẩm đã mua bất đồng bộ
+        uiScope.launch(Dispatchers.IO) {
+            loadPurchasedProductsFromPrefs()
+            // Trì hoãn một chút trước khi bắt đầu theo dõi billing data
+            delay(200)
+            observeBillingData()
+        }
     }
 
+
+    /**
+     * Lấy danh sách gói đã mua từ bộ nhớ thiết bị và cập nhật lại UI trên luồng chính.
+     */
+    private suspend fun loadPurchasedProductsFromPrefs() {
+        val savedProducts = prefs.getStringSet(PURCHASED_PRODUCTS_KEY, emptySet()) ?: emptySet()
+        withContext(Dispatchers.Main) {
+            _purchasedProducts.value = savedProducts
+            updatePlanSelectionBasedOnPurchases(savedProducts)
+        }
+    }
+
+    /**
+     * Theo dõi dữ liệu billing từ BillingManager và cập nhật productDetailsMap.
+     */
     private fun observeBillingData() {
-        // Trì hoãn khởi tạo BillingManager
-        lifecycleScope.launch {
-            //đảm bảo rằng coroutine sẽ chỉ chạy khi Lifecycle ở trạng thái STARTED và sẽ tự động hủy khi trạng thái thay đổi,
-            // giúp tiết kiệm tài nguyên hệ thống
+        uiScope.launch {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 billingManager.productDetailsMap.collectLatest { map ->
                     productDetailsMap = map
-                    setupBillingButton(map)
+                    // Giờ đây setupBillingButton sẽ có dữ liệu
                 }
             }
         }
     }
 
-    private fun loadPurchasedProducts() {
-        lifecycleScope.launch {
-            val savedProducts = prefs.getStringSet(PURCHASED_PRODUCTS_KEY, emptySet()) ?: emptySet()
-            purchasedProducts.addAll(savedProducts)
-            updatePlanSelectionBasedOnPurchases()
-        }
-    }
+    /**
+     * Gắn sự kiện click cho nút “Start Free Trial” để bắt đầu quy trình thanh toán.
+     * Nếu đang có gói khác thì gọi nâng cấp (launchBillingFlowForUpgrade()).
+     */
+    private fun setupBillingButton() {
+        binding.btnStartFreeTrial.setOnClickListener {
+            selectedProductId?.let { productId ->
+                productDetailsMap[productId]?.let { productDetails ->
+                    uiScope.launch {
+                        val currentSubscription = purchasedProducts.value.firstOrNull {
+                            it in listOf("vip_month", "vip_year")
+                        }
 
-    private fun setupBillingButton(map: Map<String, ProductDetails>) {
-        if (map.isNotEmpty()) {
-            binding.btnStartFreeTrial.setOnClickListener {
-                selectedProductId?.let { productId ->
-                    // Tìm gói subscription hiện tại
-                    val currentSubscription =
-                        purchasedProducts.firstOrNull { it in listOf("vip_month", "vip_year") }
-
-                    productDetailsMap[productId]?.let { productDetails ->
                         if (currentSubscription != null && productId in listOf(
                                 "vip_month",
                                 "vip_year"
                             ) && productId != currentSubscription
                         ) {
-                            // Gọi hàm nâng cấp
                             billingManager.launchBillingFlowForUpgrade(
                                 productDetails,
                                 currentSubscription
                             )
                         } else {
-                            // Gọi hàm mua mới
                             billingManager.launchBillingFlow(productDetails)
                         }
-                    } ?: run {
-                        Toast.makeText(
-                            applicationContext,
-                            "Product details not found for $productId",
-                            Toast.LENGTH_SHORT
-                        ).show()
                     }
                 } ?: run {
                     Toast.makeText(
                         applicationContext,
-                        "Please select a plan first",
+                        "Product details not found for $productId",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
+            } ?: run {
+                Toast.makeText(
+                    applicationContext,
+                    "Please select a plan first",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
 
-    private fun updatePlanSelectionBasedOnPurchases() {
+    /**
+     * Dựa trên các gói đã mua, vô hiệu hóa nút tương ứng và cập nhật lại giao diện,
+     * hiển thị “Upgrade” nếu người dùng chọn gói cao hơn.
+     */
+    private fun updatePlanSelectionBasedOnPurchases(currentPurchasedProducts: Set<String>) {
         val buttons = listOf(
             binding.btnMonthly to "vip_month",
             binding.btnYearly to "vip_year",
             binding.btnLifetime to "musicplayer_vip_lifetime"
         )
 
-        // Tìm gói subscription hiện tại
         var currentSubscription: String? = null
         for ((_, productId) in buttons) {
-            if (purchasedProducts.contains(productId) && productId in listOf(
+            if (currentPurchasedProducts.contains(productId) && productId in listOf(
                     "vip_month",
                     "vip_year"
                 )
@@ -144,9 +171,8 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
             }
         }
 
-        // Cập nhật giao diện
         for ((button, productId) in buttons) {
-            if (purchasedProducts.contains(productId)) {
+            if (currentPurchasedProducts.contains(productId)) {
                 button.disablePurchasedButton()
                 if (productId == "vip_month") {
                     binding.bestDeal.apply {
@@ -164,7 +190,6 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                 button.isEnabled = true
                 button.alpha = 1.0f
 
-                // Nếu có gói subscription hiện tại, hiển thị tùy chọn nâng cấp
                 if (currentSubscription != null && productId in listOf(
                         "vip_month",
                         "vip_year"
@@ -176,7 +201,6 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
             }
         }
 
-        // Cập nhật văn bản nút Start Free Trial
         if (currentSubscription != null) {
             binding.btnStartFreeTrial.text = "Upgrade Plan"
         } else {
@@ -184,36 +208,41 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
         }
     }
 
-
     private fun setupInitialSelectedPlan() {
-        if (purchasedProducts.isEmpty()) {
-            // Nếu chưa mua gì, chọn mặc định gói tháng
-            selectPlan(binding.btnMonthly)
-            selectedProductId = "vip_month"
-        } else {
-            // Nếu đã mua, không chọn mặc định
-            selectedProductId = null // Reset selectedProductId
-            updatePlanSelectionBasedOnPurchases() // Cập nhật giao diện để hiển thị trạng thái đã mua
+        uiScope.launch {
+            purchasedProducts.collectLatest { products ->
+                if (products.isEmpty()) {
+                    selectPlan(binding.btnMonthly)
+                    selectedProductId = "vip_month"
+                } else {
+                    selectedProductId = null
+                    updatePlanSelectionBasedOnPurchases(products)
+                }
+            }
         }
     }
 
+    /**
+     * Gắn sự kiện click cho 3 nút gói VIP (tháng, năm, trọn đời),
+     * nếu chưa mua thì chọn gói đó và cập nhật selectedProductId.
+     */
     private fun setupPlanSelection() {
         binding.btnMonthly.setOnClickListener {
-            if (!purchasedProducts.contains("vip_month")) {
+            if (!purchasedProducts.value.contains("vip_month")) {
                 selectPlan(binding.btnMonthly)
                 selectedProductId = "vip_month"
             }
         }
 
         binding.btnYearly.setOnClickListener {
-            if (!purchasedProducts.contains("vip_year")) {
+            if (!purchasedProducts.value.contains("vip_year")) {
                 selectPlan(binding.btnYearly)
                 selectedProductId = "vip_year"
             }
         }
 
         binding.btnLifetime.setOnClickListener {
-            if (!purchasedProducts.contains("musicplayer_vip_lifetime")) {
+            if (!purchasedProducts.value.contains("musicplayer_vip_lifetime")) {
                 selectPlan(binding.btnLifetime)
                 selectedProductId = "musicplayer_vip_lifetime"
             }
@@ -228,8 +257,7 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
         )
 
         for ((button, productId) in buttons) {
-            if (purchasedProducts.contains(productId)) {
-                // Nếu gói này đã mua => không update giao diện
+            if (purchasedProducts.value.contains(productId)) {
                 continue
             }
             val isSelected = button == selectedBtn
@@ -240,7 +268,6 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
             button.findViewById<AppCompatImageView>(R.id.radioButton1).setImageResource(icon)
         }
     }
-
 
     @SuppressLint("SetTextI18n")
     private fun setupPlanTexts() {
@@ -329,38 +356,43 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
         Toast.makeText(this, "Purchase successful!", Toast.LENGTH_SHORT).show()
 
         val purchasedProduct = purchase.products.firstOrNull()
-        if (purchasedProduct != null) {
-            purchasedProducts.add(purchasedProduct)
-            prefs.edit().putStringSet(PURCHASED_PRODUCTS_KEY, purchasedProducts).apply()
-        }
+        purchasedProduct?.let { productId ->
+            uiScope.launch(Dispatchers.IO) {
+                val currentProducts = prefs.getStringSet(PURCHASED_PRODUCTS_KEY, emptySet())?.toMutableSet() ?: mutableSetOf()
+                currentProducts.add(productId)
+                prefs.edit().putStringSet(PURCHASED_PRODUCTS_KEY, currentProducts).apply()
+                withContext(Dispatchers.Main) {
+                    _purchasedProducts.value = currentProducts
+                    updatePlanSelectionBasedOnPurchases(currentProducts)
+                }
+            }
 
-        when (purchasedProduct) {
-            "vip_month" -> {
-                binding.btnMonthly.disablePurchasedButton()
+            when (productId) {
+                "vip_month" -> binding.btnMonthly.disablePurchasedButton()
+                "vip_year" -> binding.btnYearly.disablePurchasedButton()
+                "musicplayer_vip_lifetime" -> binding.btnLifetime.disablePurchasedButton()
+            }
+            if (productId == "vip_month") {
                 binding.bestDeal.apply {
                     text = "Purchased"
                     setBackgroundResource(R.drawable.bg_disable)
                 }
             }
-
-            "vip_year" -> binding.btnYearly.disablePurchasedButton()
-            "musicplayer_vip_lifetime" -> binding.btnLifetime.disablePurchasedButton()
         }
-        // Cập nhật lại giao diện sau khi nâng cấp
-        updatePlanSelectionBasedOnPurchases()
     }
 
     override fun onPurchaseError(errorCode: Int, errorMessage: String) {
         Toast.makeText(this, "Purchase error: $errorMessage (Code: $errorCode)", Toast.LENGTH_LONG)
             .show()
-        // Xử lý logic khi mua hàng lỗi
     }
 
     override fun onPurchaseCancelled() {
         Toast.makeText(this, "Purchase cancelled", Toast.LENGTH_SHORT).show()
-        // Xử lý logic khi người dùng hủy giao dịch
     }
 
+    /**
+     * Vô hiệu hóa một nút gói VIP đã mua: làm mờ nút, không cho click, đổi biểu tượng radio.
+     */
     private fun ViewGroup.disablePurchasedButton() {
         isEnabled = false
         findViewById<AppCompatImageView>(R.id.radioButton1).setImageResource(R.drawable.ic_uncheck)
