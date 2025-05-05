@@ -121,6 +121,7 @@ class BillingManager(
         }
     }
 
+    // Dùng để lấy thông tin các sản phẩm đang được bán (trên Google Play Console).
     private fun queryProductDetails(
         productIds: List<String>,
         productType: String,
@@ -139,7 +140,7 @@ class BillingManager(
 
         billingClient.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                onComplete(productDetailsList ?: emptyList())
+                onComplete(productDetailsList)
             } else {
                 Log.e(
                     TAG,
@@ -187,6 +188,7 @@ class BillingManager(
         queryPurchases(BillingClient.ProductType.INAPP)
     }
 
+    // Dùng để kiểm tra những gì người dùng đã mua trước đó (trên cùng tài khoản Google).
     private fun queryPurchases(productType: String) {
         billingClient.queryPurchasesAsync(
             QueryPurchasesParams.newBuilder()
@@ -230,6 +232,7 @@ class BillingManager(
         billingClient.launchBillingFlow(activity, billingFlowParams)
     }
 
+    // Quy trình cấp gói
     fun launchBillingFlowForUpgrade(productDetails: ProductDetails, oldProductId: String) {
         val oldPurchaseToken = getOldPurchaseToken(oldProductId) ?: run {
             Log.e(TAG, "No valid purchase token found for $oldProductId")
@@ -254,7 +257,7 @@ class BillingManager(
 
         val subscriptionUpdateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
             .setOldPurchaseToken(oldPurchaseToken)
-            .setSubscriptionReplacementMode(0)
+            .setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_FULL_PRICE)
             .build()
 
         val billingFlowParams = BillingFlowParams.newBuilder()
@@ -309,6 +312,7 @@ class BillingManager(
         }
     }
 
+    // Xác thực
     private fun acknowledgePurchase(purchase: Purchase) {
         val params = AcknowledgePurchaseParams.newBuilder()
             .setPurchaseToken(purchase.purchaseToken)
