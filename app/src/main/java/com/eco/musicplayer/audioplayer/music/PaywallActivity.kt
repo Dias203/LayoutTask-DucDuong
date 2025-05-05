@@ -48,6 +48,7 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
     private val prefs by lazy { getSharedPreferences(PREFS_NAME, MODE_PRIVATE) }
     private val uiScope = lifecycleScope
 
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityPaywallBinding.inflate(layoutInflater)
@@ -105,6 +106,7 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
         }
     }
 
+    // Phân cấp cho các gói
     private fun getSubscriptionLevel(productId: String): Int {
         return when (productId) {
             "vip_month" -> 1
@@ -327,7 +329,7 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
     private fun setupPlanTexts() {
         binding.btnYearly.apply {
             findViewById<TextView>(R.id.tv2).text = "Vip Year"
-            findViewById<TextView>(R.id.tv4).text = "46,0800đ"
+            findViewById<TextView>(R.id.tv4).text = "46,800đ"
             findViewById<TextView>(R.id.tv5).text = "per year"
         }
 
