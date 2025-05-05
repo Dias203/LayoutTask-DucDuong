@@ -18,8 +18,10 @@ import androidx.appcompat.widget.AppCompatImageView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
+import com.android.billingclient.api.QueryProductDetailsParams
 import com.eco.musicplayer.audioplayer.music.databinding.ActivityPaywallBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -155,6 +157,27 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                             // Nếu không phải subscription hoặc chưa có gói hiện tại, cho phép mua
                             billingManager.launchBillingFlow(productDetails)
                         }
+
+                        /*if (currentSubscription != null && newProductId in listOf("vip_month", "vip_year")) {
+                            if (isUpgradeAllowed(currentSubscription, newProductId)) {
+                                billingManager.launchBillingFlowForUpgrade(productDetails, currentSubscription)
+                            } else if (isDowngrade(currentSubscription, newProductId)) {
+                                // Downgrade: chỉ áp dụng ở kỳ tiếp theo
+                                billingManager.launchBillingFlow(productDetails)
+                                Toast.makeText(
+                                    applicationContext,
+                                    "Gói mới sẽ được áp dụng sau khi gói hiện tại kết thúc.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            } else {
+                                Toast.makeText(
+                                    applicationContext,
+                                    "Không thể chuyển đổi giữa các gói này!",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }*/
+
                     }
                 } ?: run {
                     Toast.makeText(
@@ -172,6 +195,19 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
             }
         }
     }
+
+
+    /*private fun isDowngrade(currentProductId: String, newProductId: String): Boolean {
+        val priority = mapOf(
+            "vip_year" to 2,
+            "vip_month" to 1
+        )
+
+        val currentPriority = priority[currentProductId] ?: 0
+        val newPriority = priority[newProductId] ?: 0
+
+        return newPriority < currentPriority
+    }*/
 
     /**
      * Dựa trên các gói đã mua, vô hiệu hóa nút tương ứng và cập nhật lại giao diện,
@@ -322,7 +358,34 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
     }
 
 
+    // Hủy gói life time
 
+
+
+    // Xử lý Free Trial
+    private fun checkTrialEligibility(productId: String, callback: (isEligible: Boolean) -> Unit) {
+        billingManager.billingClient.queryProductDetailsAsync(
+            QueryProductDetailsParams.newBuilder()
+                .setProductList(
+                    listOf(
+                        QueryProductDetailsParams.Product.newBuilder()
+                            .setProductId(productId)
+                            .setProductType(BillingClient.ProductType.SUBS)
+                            .build()
+                    )
+                ).build()
+        ) { _, productDetailsList ->
+            val productDetails = productDetailsList.firstOrNull()
+            val offerDetails = productDetails?.subscriptionOfferDetails?.firstOrNull()
+
+            // Kiểm tra offer có trial không
+            val hasTrial = offerDetails?.pricingPhases?.pricingPhaseList?.any {
+                it.billingPeriod == "P3D" && it.priceAmountMicros.toInt() == 0
+            } ?: false
+
+            callback(hasTrial)
+        }
+    }
 
 
     @SuppressLint("SetTextI18n")

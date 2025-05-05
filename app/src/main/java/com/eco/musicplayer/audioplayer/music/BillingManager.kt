@@ -5,9 +5,13 @@ import android.app.Application
 import android.util.Log
 import android.widget.Toast
 import com.android.billingclient.api.*
+import com.android.billingclient.ktx.BuildConfig
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 private const val TAG = "BillingManager"
 
@@ -25,6 +29,7 @@ class BillingManager(
 
 
     private val context = application.applicationContext
+    private lateinit var coroutineScope: CoroutineScope
 
     // State flows
     private val _productDetailsList = MutableStateFlow<List<ProductDetails>>(emptyList())
@@ -34,7 +39,7 @@ class BillingManager(
     private val _purchasedProductIds = MutableStateFlow<Set<String>>(emptySet())
     private val _purchases = MutableStateFlow<List<Purchase>>(emptyList())
 
-    private val billingClient by lazy { createBillingClient() }
+    val billingClient by lazy { createBillingClient() }
 
     init {
         setupBillingConnection()
@@ -268,6 +273,45 @@ class BillingManager(
         billingClient.launchBillingFlow(activity, billingFlowParams)
     }
 
+    // Quy trình hạ cấp gói
+    fun launchBillingFlowForDowngrade(productDetails: ProductDetails, oldProductId: String) {
+        val oldPurchaseToken = getOldPurchaseToken(oldProductId) ?: run {
+            Log.e(TAG, "No valid purchase token found for $oldProductId")
+            Toast.makeText(context, "Không tìm thấy giao dịch trước đó", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (productDetails.productType != BillingClient.ProductType.SUBS) {
+            Log.e(TAG, "Unsupported product type for downgrade: ${productDetails.productType}")
+            return
+        }
+
+        val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: run {
+            Log.e(TAG, "No offer token for subscription: ${productDetails.title}")
+            return
+        }
+
+        val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
+            .setProductDetails(productDetails)
+            .setOfferToken(offerToken)
+            .build()
+
+        val subscriptionUpdateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
+            .setOldPurchaseToken(oldPurchaseToken)
+            .setSubscriptionReplacementMode(
+                BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITH_TIME_PRORATION
+            )
+            .build()
+
+        val billingFlowParams = BillingFlowParams.newBuilder()
+            .setProductDetailsParamsList(listOf(productDetailsParams))
+            .setSubscriptionUpdateParams(subscriptionUpdateParams)
+            .build()
+
+        billingClient.launchBillingFlow(activity, billingFlowParams)
+    }
+
+
     private fun createProductDetailsParams(productDetails: ProductDetails): BillingFlowParams.ProductDetailsParams? {
         return BillingFlowParams.ProductDetailsParams.newBuilder()
             .setProductDetails(productDetails)
@@ -284,6 +328,25 @@ class BillingManager(
             .build()
     }
     // endregion
+
+    //region Launch Billing Flow free trial
+    fun launchBillingFlowWithOffer(
+        productDetails: ProductDetails,
+        offerToken: String
+    ) {
+        val params = BillingFlowParams.newBuilder()
+            .setProductDetailsParamsList(
+                listOf(
+                    BillingFlowParams.ProductDetailsParams.newBuilder()
+                        .setProductDetails(productDetails)
+                        .setOfferToken(offerToken) // Quan trọng: dùng offer có trial
+                        .build()
+                )
+            )
+            .build()
+
+        billingClient.launchBillingFlow(activity, params)
+    }
 
     // region Purchase Handling
     override fun onPurchasesUpdated(billingResult: BillingResult, purchases: List<Purchase>?) {
@@ -325,4 +388,28 @@ class BillingManager(
         }
     }
     // endregion
+
+    fun consumePurchase(
+        purchase: Purchase,
+        onSuccess: () -> Unit,
+        onError: (Int) -> Unit
+    ) {
+        coroutineScope.launch {
+            val consumeParams = ConsumeParams.newBuilder()
+                .setPurchaseToken(purchase.purchaseToken)
+                .build()
+
+            billingClient.consumeAsync(consumeParams) { billingResult, _ ->
+                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                    // Sản phẩm đã được tiêu thụ thành công
+                    Log.d("Billing", "Đã tiêu thụ purchase: ${purchase.purchaseToken}")
+                    onSuccess()
+                } else {
+                    // Có lỗi xảy ra khi tiêu thụ
+                    Log.e("Billing", "Lỗi khi tiêu thụ: ${billingResult.debugMessage}")
+                    onError(billingResult.responseCode)
+                }
+            }
+        }
+    }
 }
