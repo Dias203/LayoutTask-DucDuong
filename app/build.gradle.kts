@@ -60,4 +60,6 @@ dependencies {
     implementation(libs.billing)
     implementation(libs.billing.ktx) // extension cho Kotlin
     implementation(libs.billing.ktx.v610)
+    implementation (libs.gson)
+    implementation (libs.threetenabp)
 }

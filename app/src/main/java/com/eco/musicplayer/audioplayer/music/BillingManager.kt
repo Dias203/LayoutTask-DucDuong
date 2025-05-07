@@ -5,13 +5,10 @@ import android.app.Application
 import android.util.Log
 import android.widget.Toast
 import com.android.billingclient.api.*
-import com.android.billingclient.ktx.BuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 
 private const val TAG = "BillingManager"
 
@@ -21,27 +18,26 @@ class BillingManager(
     private val billingListener: BillingListener
 ) : PurchasesUpdatedListener {
 
-    private val PRODUCT_IDS = listOf(
-        "musicplayer_vip_lifetime",
-        "vip_year",
-        "vip_month"
-    )
-
-
     private val context = application.applicationContext
-    private lateinit var coroutineScope: CoroutineScope
 
-    // State flows
-    private val _productDetailsList = MutableStateFlow<List<ProductDetails>>(emptyList())
-    private val _productDetailsMap = MutableStateFlow<Map<String, ProductDetails>>(emptyMap())
-    val productDetailsMap: StateFlow<Map<String, ProductDetails>> = _productDetailsMap.asStateFlow()
-
+    // State flows (chỉ giữ lại những state cần thiết trong BillingManager)
     private val _purchasedProductIds = MutableStateFlow<Set<String>>(emptySet())
+    val purchasedProductIds: StateFlow<Set<String>> = _purchasedProductIds.asStateFlow()
     private val _purchases = MutableStateFlow<List<Purchase>>(emptyList())
+    val purchases: StateFlow<List<Purchase>> = _purchases.asStateFlow()
 
-    val billingClient by lazy { createBillingClient() }
+    internal val billingClient by lazy { createBillingClient() } // Để internal cho extension function dùng
+
+
+    // Thêm TrialEligibilityChecker
+    private lateinit var trialEligibilityChecker: TrialEligibilityChecker
+
+    /*// StateFlow để theo dõi trạng thái đủ điều kiện dùng thử
+    val trialEligibilityMap: StateFlow<Map<String, Boolean>>
+        get() = trialEligibilityChecker.trialEligibilityMap*/
 
     init {
+        initTrialEligibilityChecker()
         setupBillingConnection()
     }
 
@@ -65,8 +61,10 @@ class BillingManager(
                     when (billingResult.responseCode) {
                         BillingClient.BillingResponseCode.OK -> {
                             Log.d(TAG, "Billing connection success")
-                            queryAllProductDetails()
+                            queryAllProductDetails() // Gọi extension function
                             queryUserPurchases()
+                            // Gọi refreshTrialEligibility sau khi đã có cả thông tin sản phẩm và giao dịch mua
+                            refreshTrialEligibility()
                         }
 
                         else -> Log.e(
@@ -78,114 +76,18 @@ class BillingManager(
 
                 override fun onBillingServiceDisconnected() {
                     Log.w(TAG, "Billing service disconnected")
+                    retryConnect()
                 }
             })
         } else {
-            queryAllProductDetails()
+            queryAllProductDetails() // Gọi extension function
         }
     }
     // endregion
 
-    // region Product Details
-    private fun queryAllProductDetails() {
-        val subsProducts = PRODUCT_IDS.filter { it in listOf("vip_year", "vip_month") }
-        val inappProducts = PRODUCT_IDS.filter { it == "musicplayer_vip_lifetime" }
-
-        val allProductDetails = mutableListOf<ProductDetails>()
-        var subsQueryCompleted = subsProducts.isEmpty()
-        var inappQueryCompleted = inappProducts.isEmpty()
-
-        fun checkAndProcess() {
-            if (subsQueryCompleted && inappQueryCompleted) {
-                processAllProductDetails(allProductDetails)
-            }
-        }
-
-        if (subsProducts.isNotEmpty()) {
-            queryProductDetails(
-                productIds = subsProducts,
-                productType = BillingClient.ProductType.SUBS,
-                onComplete = { products ->
-                    allProductDetails.addAll(products)
-                    subsQueryCompleted = true
-                    checkAndProcess()
-                }
-            )
-        }
-
-        if (inappProducts.isNotEmpty()) {
-            queryProductDetails(
-                productIds = inappProducts,
-                productType = BillingClient.ProductType.INAPP,
-                onComplete = { products ->
-                    allProductDetails.addAll(products)
-                    inappQueryCompleted = true
-                    checkAndProcess()
-                }
-            )
-        }
+    private fun retryConnect() {
+        setupBillingConnection()
     }
-
-    // Dùng để lấy thông tin các sản phẩm đang được bán (trên Google Play Console).
-    private fun queryProductDetails(
-        productIds: List<String>,
-        productType: String,
-        onComplete: (List<ProductDetails>) -> Unit
-    ) {
-        val params = QueryProductDetailsParams.newBuilder()
-            .setProductList(
-                productIds.map {
-                    QueryProductDetailsParams.Product.newBuilder()
-                        .setProductId(it)
-                        .setProductType(productType)
-                        .build()
-                }
-            )
-            .build()
-
-        billingClient.queryProductDetailsAsync(params) { billingResult, productDetailsList ->
-            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                onComplete(productDetailsList)
-            } else {
-                Log.e(
-                    TAG,
-                    "Failed to retrieve $productType product details: ${billingResult.debugMessage}"
-                )
-                onComplete(emptyList())
-            }
-        }
-    }
-
-    private fun processAllProductDetails(productDetailsList: List<ProductDetails>) {
-        Log.d(TAG, "All product details retrieved: ${productDetailsList.size}")
-        _productDetailsList.value = productDetailsList
-        _productDetailsMap.value = productDetailsList.associateBy { it.productId }
-
-        productDetailsList.forEach { logProductDetails(it) }
-    }
-
-    private fun logProductDetails(product: ProductDetails) {
-        when (product.productType) {
-            BillingClient.ProductType.SUBS -> {
-                product.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()
-                    ?.let { phase ->
-                        Log.d(
-                            TAG,
-                            "Subscription - ${product.productId}: ${phase.formattedPrice}, ${phase.billingPeriod}"
-                        )
-                    } ?: Log.e(TAG, "No pricing phases available for ${product.productId}")
-            }
-
-            BillingClient.ProductType.INAPP -> {
-                product.oneTimePurchaseOfferDetails?.let { offer ->
-                    Log.d(TAG, "One-time - ${product.productId}: ${offer.formattedPrice}")
-                } ?: Log.e(TAG, "No offer details for ${product.productId}")
-            }
-
-            else -> Log.w(TAG, "Unknown product type: ${product.productType} for ${product.title}")
-        }
-    }
-    // endregion
 
     // region Purchases
     private fun queryUserPurchases() {
@@ -193,7 +95,6 @@ class BillingManager(
         queryPurchases(BillingClient.ProductType.INAPP)
     }
 
-    // Dùng để kiểm tra những gì người dùng đã mua trước đó (trên cùng tài khoản Google).
     private fun queryPurchases(productType: String) {
         billingClient.queryPurchasesAsync(
             QueryPurchasesParams.newBuilder()
@@ -202,6 +103,15 @@ class BillingManager(
         ) { billingResult, purchasesList ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                 handleAllPurchases(purchasesList)
+                if (productType == BillingClient.ProductType.INAPP) {
+                    purchasesList.forEach { purchase ->
+                        if (purchase.products.contains("musicplayer_vip_lifetime")) {
+                            Log.d("Cancel Lifetime", "Cancel Lifetime")
+                            //Hủy Lifetime phía dev
+                            //consumePurchase(purchase)
+                        }
+                    }
+                }
             } else {
                 Log.e(TAG, "Failed to query $productType purchases: ${billingResult.debugMessage}")
             }
@@ -228,6 +138,23 @@ class BillingManager(
     // endregion
 
     // region Billing Flow
+
+    //tạo tham số chi tiết sản phẩm cho luồng thanh toán
+    fun createProductDetailsParams(productDetails: ProductDetails): BillingFlowParams.ProductDetailsParams? {
+        return BillingFlowParams.ProductDetailsParams.newBuilder()
+            .setProductDetails(productDetails)
+            .apply {
+                if (productDetails.productType == BillingClient.ProductType.SUBS) {
+                    productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken?.let {
+                        setOfferToken(it)
+                    } ?: run {
+                        Log.e(TAG, "No offer token for subscription: ${productDetails.title}")
+                        return null
+                    }
+                }
+            }
+            .build()
+    }
     fun launchBillingFlow(productDetails: ProductDetails) {
         val productDetailsParams = createProductDetailsParams(productDetails) ?: return
         val billingFlowParams = BillingFlowParams.newBuilder()
@@ -273,6 +200,7 @@ class BillingManager(
         billingClient.launchBillingFlow(activity, billingFlowParams)
     }
 
+
     // Quy trình hạ cấp gói
     fun launchBillingFlowForDowngrade(productDetails: ProductDetails, oldProductId: String) {
         val oldPurchaseToken = getOldPurchaseToken(oldProductId) ?: run {
@@ -310,43 +238,7 @@ class BillingManager(
 
         billingClient.launchBillingFlow(activity, billingFlowParams)
     }
-
-
-    private fun createProductDetailsParams(productDetails: ProductDetails): BillingFlowParams.ProductDetailsParams? {
-        return BillingFlowParams.ProductDetailsParams.newBuilder()
-            .setProductDetails(productDetails)
-            .apply {
-                if (productDetails.productType == BillingClient.ProductType.SUBS) {
-                    productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken?.let {
-                        setOfferToken(it)
-                    } ?: run {
-                        Log.e(TAG, "No offer token for subscription: ${productDetails.title}")
-                        return null
-                    }
-                }
-            }
-            .build()
-    }
     // endregion
-
-    //region Launch Billing Flow free trial
-    fun launchBillingFlowWithOffer(
-        productDetails: ProductDetails,
-        offerToken: String
-    ) {
-        val params = BillingFlowParams.newBuilder()
-            .setProductDetailsParamsList(
-                listOf(
-                    BillingFlowParams.ProductDetailsParams.newBuilder()
-                        .setProductDetails(productDetails)
-                        .setOfferToken(offerToken) // Quan trọng: dùng offer có trial
-                        .build()
-                )
-            )
-            .build()
-
-        billingClient.launchBillingFlow(activity, params)
-    }
 
     // region Purchase Handling
     override fun onPurchasesUpdated(billingResult: BillingResult, purchases: List<Purchase>?) {
@@ -355,7 +247,18 @@ class BillingManager(
                 purchases?.let {
                     handleAllPurchases(it)
                     it.forEach { purchase ->
-                        handlePurchase(purchase)
+                        if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
+                            if (!purchase.isAcknowledged) {
+                                acknowledgePurchase(purchase)
+                                refreshTrialEligibility()
+                            }
+                            /*checkAndRecordTrialUsage(purchase)
+                            billingListener.onPurchaseSuccess(purchase)*/
+                        }
+                        // Cập nhật trạng thái đủ điều kiện dùng thử
+                        if (this::trialEligibilityChecker.isInitialized) {
+                            trialEligibilityChecker.updateAfterPurchase(purchase)
+                        }
                         billingListener.onPurchaseSuccess(purchase)
                     }
                 }
@@ -369,13 +272,21 @@ class BillingManager(
         }
     }
 
-    private fun handlePurchase(purchase: Purchase) {
-        if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED && !purchase.isAcknowledged) {
-            acknowledgePurchase(purchase)
+    private fun checkAndRecordTrialUsage(purchase: Purchase) {
+        val productDetailsMapValue =
+            productDetailsMap.value // Truy cập thông qua property của BillingManager
+        val isFreeTrial = purchase.products.any { productId ->
+            productDetailsMapValue[productId]?.subscriptionOfferDetails?.any { offer ->
+                offer.pricingPhases.pricingPhaseList.any { phase ->
+                    phase.priceAmountMicros == 0L
+                }
+            } ?: false
+        }
+        if (isFreeTrial) {
+            Log.d(TAG, "Người dùng đã bắt đầu dùng thử miễn phí cho ${purchase.products}")
         }
     }
 
-    // Xác thực
     private fun acknowledgePurchase(purchase: Purchase) {
         val params = AcknowledgePurchaseParams.newBuilder()
             .setPurchaseToken(purchase.purchaseToken)
@@ -389,26 +300,47 @@ class BillingManager(
     }
     // endregion
 
-    fun consumePurchase(
-        purchase: Purchase,
-        onSuccess: () -> Unit,
-        onError: (Int) -> Unit
-    ) {
-        coroutineScope.launch {
-            val consumeParams = ConsumeParams.newBuilder()
-                .setPurchaseToken(purchase.purchaseToken)
-                .build()
+    // Khởi tạo trong constructor hoặc một phương thức init
+    private fun initTrialEligibilityChecker() {
+        trialEligibilityChecker = TrialEligibilityChecker(billingClient)
 
-            billingClient.consumeAsync(consumeParams) { billingResult, _ ->
-                if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                    // Sản phẩm đã được tiêu thụ thành công
-                    Log.d("Billing", "Đã tiêu thụ purchase: ${purchase.purchaseToken}")
-                    onSuccess()
-                } else {
-                    // Có lỗi xảy ra khi tiêu thụ
-                    Log.e("Billing", "Lỗi khi tiêu thụ: ${billingResult.debugMessage}")
-                    onError(billingResult.responseCode)
-                }
+        // Liên kết với productDetailsMap
+        TrialEligibilityChecker.listenToProductDetails(productDetailsMap)
+    }
+
+    // Làm mới trạng thái đủ điều kiện dùng thử
+    fun refreshTrialEligibility() {
+        if (this::trialEligibilityChecker.isInitialized) {
+            trialEligibilityChecker.refreshTrialEligibility(_productDetailsMap.value)
+        }
+    }
+
+    // Kiểm tra nhanh xem người dùng có đủ điều kiện dùng thử một sản phẩm không
+    fun isEligibleForTrial(productId: String): Boolean {
+        return if (this::trialEligibilityChecker.isInitialized) {
+            trialEligibilityChecker.isEligibleForTrial(productId)
+        } else false
+    }
+
+    fun getTrialTimeInfo(productId: String): TrialTimeInfo {
+        return if (this::trialEligibilityChecker.isInitialized) {
+            trialEligibilityChecker.getTrialTimeInfo(productId)
+        } else {
+            TrialTimeInfo(false, 0, 0)
+        }
+    }
+
+
+    private fun consumePurchase(purchase: Purchase) {
+        val consumeParams = ConsumeParams.newBuilder()
+            .setPurchaseToken(purchase.purchaseToken)
+            .build()
+
+        billingClient.consumeAsync(consumeParams) { billingResult, _ ->
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                Log.i(TAG, "Đã tiêu thụ purchase: ${purchase.purchaseToken}")
+            } else {
+                Log.i(TAG, "Lỗi khi tiêu thụ: ${billingResult.debugMessage}")
             }
         }
     }

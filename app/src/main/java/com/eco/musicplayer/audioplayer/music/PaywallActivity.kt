@@ -9,6 +9,7 @@ import android.text.Spanned
 import android.text.TextPaint
 import android.text.method.LinkMovementMethod
 import android.text.style.ClickableSpan
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -23,6 +24,8 @@ import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.eco.musicplayer.audioplayer.music.databinding.ActivityPaywallBinding
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,11 +61,11 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
 
         initUI()
         loadInitialData()
+
     }
 
     private fun initUI() {
         setupInitialSelectedPlan()
-        setupPlanTexts()
         setupLimitedVersionText()
         setupTermsAndPrivacyText()
         setupPlanSelection()
@@ -77,8 +80,8 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
         uiScope.launch(Dispatchers.IO) {
             loadPurchasedProductsFromPrefs()
             // Trì hoãn một chút trước khi bắt đầu theo dõi billing data
-            delay(200)
             observeBillingData()
+            //observeFreeTrialAvailability()
         }
     }
 
@@ -103,6 +106,9 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                 billingManager.productDetailsMap.collectLatest { map ->
                     productDetailsMap = map
                     // Giờ đây setupBillingButton sẽ có dữ liệu
+                    setupPlanTexts() // Gọi ở đây khi đã có dữ liệu
+                    setupBillingButton() // Cập nhật lại nút thanh toán
+                    observeFreeTrialAvailability()
                 }
             }
         }
@@ -111,9 +117,9 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
     // Phân cấp cho các gói
     private fun getSubscriptionLevel(productId: String): Int {
         return when (productId) {
-            "vip_month" -> 1
-            "vip_year" -> 2
-            "musicplayer_vip_lifetime" -> 3
+            PRODUCT_ID_MONTH -> 1
+            PRODUCT_ID_YEAR -> 2
+            PRODUCT_ID_LIFETIME -> 3
             else -> 0 // Không phải gói subscription
         }
     }
@@ -132,13 +138,10 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                 productDetailsMap[newProductId]?.let { productDetails ->
                     uiScope.launch {
                         val currentSubscription = purchasedProducts.value.firstOrNull {
-                            it in listOf("vip_month", "vip_year")
+                            it in Constants.subsListProduct
                         }
 
-                        if (currentSubscription != null && newProductId in listOf(
-                                "vip_month",
-                                "vip_year"
-                            )
+                        if (currentSubscription != null && newProductId in Constants.subsListProduct
                         ) {
                             // Kiểm tra nếu là nâng cấp
                             if (isUpgradeAllowed(currentSubscription, newProductId)) {
@@ -215,15 +218,15 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
      */
     private fun updatePlanSelectionBasedOnPurchases(currentPurchasedProducts: Set<String>) {
         val buttons = listOf(
-            binding.btnMonthly to "vip_month",
-            binding.btnYearly to "vip_year",
-            binding.btnLifetime to "musicplayer_vip_lifetime"
+            binding.btnMonthly to PRODUCT_ID_MONTH,
+            binding.btnYearly to PRODUCT_ID_YEAR,
+            binding.btnLifetime to PRODUCT_ID_LIFETIME
         )
 
         // Kiểm tra nếu đã mua Lifetime -> Disable tất cả gói khác (không ẩn)
-        if (currentPurchasedProducts.contains("musicplayer_vip_lifetime")) {
+        if (currentPurchasedProducts.contains(PRODUCT_ID_LIFETIME)) {
             buttons.forEach { (button, productId) ->
-                if (productId == "musicplayer_vip_lifetime") {
+                if (productId == PRODUCT_ID_LIFETIME) {
                     button.disablePurchasedButton() // Áp dụng hàm có sẵn
                 } else {
                     button.isEnabled = false // Chỉ disable, không ẩn
@@ -246,13 +249,13 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                 currentPurchasedProducts.contains(productId) -> {
                     button.disablePurchasedButton()
                     when (productId) {
-                        "vip_month" -> {
+                        PRODUCT_ID_MONTH -> {
                             binding.bestDeal.apply {
                                 text = "Purchased"
                                 setBackgroundResource(R.drawable.bg_disable)
                             }
                         }
-                        "vip_year" -> {
+                        PRODUCT_ID_YEAR -> {
                             binding.bestDeal2.apply {
                                 visibility = View.VISIBLE
                                 text = "Purchased"
@@ -301,7 +304,7 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
             purchasedProducts.collectLatest { products ->
                 if (products.isEmpty()) {
                     selectPlan(binding.btnMonthly)
-                    selectedProductId = "vip_month"
+                    selectedProductId = PRODUCT_ID_MONTH
                 } else {
                     selectedProductId = null
                     updatePlanSelectionBasedOnPurchases(products)
@@ -316,32 +319,32 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
      */
     private fun setupPlanSelection() {
         binding.btnMonthly.setOnClickListener {
-            if (!purchasedProducts.value.contains("vip_month")) {
+            if (!purchasedProducts.value.contains(PRODUCT_ID_MONTH)) {
                 selectPlan(binding.btnMonthly)
-                selectedProductId = "vip_month"
+                selectedProductId = PRODUCT_ID_MONTH
             }
         }
 
         binding.btnYearly.setOnClickListener {
-            if (!purchasedProducts.value.contains("vip_year")) {
+            if (!purchasedProducts.value.contains(PRODUCT_ID_YEAR)) {
                 selectPlan(binding.btnYearly)
-                selectedProductId = "vip_year"
+                selectedProductId = PRODUCT_ID_YEAR
             }
         }
 
         binding.btnLifetime.setOnClickListener {
-            if (!purchasedProducts.value.contains("musicplayer_vip_lifetime")) {
+            if (!purchasedProducts.value.contains(PRODUCT_ID_LIFETIME)) {
                 selectPlan(binding.btnLifetime)
-                selectedProductId = "musicplayer_vip_lifetime"
+                selectedProductId = PRODUCT_ID_LIFETIME
             }
         }
     }
 
     private fun selectPlan(selectedBtn: ViewGroup) {
         val buttons = listOf(
-            binding.btnMonthly to "vip_month",
-            binding.btnYearly to "vip_year",
-            binding.btnLifetime to "musicplayer_vip_lifetime"
+            binding.btnMonthly to PRODUCT_ID_MONTH,
+            binding.btnYearly to PRODUCT_ID_YEAR,
+            binding.btnLifetime to PRODUCT_ID_LIFETIME
         )
 
         for ((button, productId) in buttons) {
@@ -356,51 +359,99 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
             button.findViewById<AppCompatImageView>(R.id.radioButton1).setImageResource(icon)
         }
     }
-
-
     // Hủy gói life time
 
 
 
     // Xử lý Free Trial
-    private fun checkTrialEligibility(productId: String, callback: (isEligible: Boolean) -> Unit) {
-        billingManager.billingClient.queryProductDetailsAsync(
-            QueryProductDetailsParams.newBuilder()
-                .setProductList(
-                    listOf(
-                        QueryProductDetailsParams.Product.newBuilder()
-                            .setProductId(productId)
-                            .setProductType(BillingClient.ProductType.SUBS)
-                            .build()
-                    )
-                ).build()
-        ) { _, productDetailsList ->
-            val productDetails = productDetailsList.firstOrNull()
-            val offerDetails = productDetails?.subscriptionOfferDetails?.firstOrNull()
+    private fun observeFreeTrialAvailability() {
+        if (billingManager.isEligibleForTrial(PRODUCT_ID_FREE_TRIAL)) {
+            val trialInfo = billingManager.getTrialTimeInfo(PRODUCT_ID_FREE_TRIAL)
 
-            // Kiểm tra offer có trial không
-            val hasTrial = offerDetails?.pricingPhases?.pricingPhaseList?.any {
-                it.billingPeriod == "P3D" && it.priceAmountMicros.toInt() == 0
-            } ?: false
-
-            callback(hasTrial)
+            if (trialInfo.isInTrial) {
+                val remainingDays = trialInfo.remainingDays
+                val totalTrialDays = trialInfo.totalTrialDays
+                Log.d("FreeTrial Available", "Còn $remainingDays/$totalTrialDays ngày dùng thử")
+            }
+        } else {
+            Log.d("FreeTrial Available", "Bạn không còn lượt dùng thử")
         }
     }
 
 
     @SuppressLint("SetTextI18n")
     private fun setupPlanTexts() {
-        binding.btnYearly.apply {
-            findViewById<TextView>(R.id.tv2).text = "Vip Year"
-            findViewById<TextView>(R.id.tv4).text = "46,800đ"
-            findViewById<TextView>(R.id.tv5).text = "per year"
+        val productDetailsMap = billingManager.productDetailsMap.value
+
+        // Xử lý gói monthly (subscription)
+        productDetailsMap[PRODUCT_ID_MONTH]?.let { monthlyPlan ->
+            binding.btnMonthly.apply {
+                findViewById<TextView>(R.id.tv2).text = getTitleText(monthlyPlan.productId) // "VIP Month"
+
+                /*// Lặp qua các offer có sẵn cho gói này
+                monthlyPlan.subscriptionOfferDetails?.forEach { offerDetails ->
+                    val offerId = offerDetails.offerId // Lấy offer ID
+                    val offerToken = offerDetails.offerToken // Lấy offer Token quan trọng để launch billing flow
+
+                    // Hiển thị thông tin offer (ví dụ: phase giá đầu tiên)
+                    offerDetails.pricingPhases.pricingPhaseList.firstOrNull()?.let { phase ->
+                        val offerTextView = TextView(context)
+                        offerTextView.text = "Offer: $offerId - ${phase.formattedPrice} for ${phase.billingPeriod} ${phase.billingCycleCount}"
+                        // Thêm offerTextView vào layout của nút (bạn có thể cần điều chỉnh layout)
+                        addView(offerTextView)
+                    }
+                }*/
+
+                monthlyPlan.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
+                    findViewById<TextView>(R.id.tv4).text = phase.formattedPrice // "28,080đ"
+                    findViewById<TextView>(R.id.tv5).text = "per ${getPeriodText(phase.billingPeriod)}"
+                }
+            }
         }
 
-        binding.btnLifetime.apply {
-            findViewById<TextView>(R.id.tv2).text = "Vip Lifetime"
-            findViewById<TextView>(R.id.tv3).text = "One-time payment"
-            findViewById<TextView>(R.id.tv4).text = "7,000đ"
-            findViewById<TextView>(R.id.tv5).text = "forever"
+        // Xử lý gói yearly (subscription)
+        productDetailsMap[PRODUCT_ID_YEAR]?.let { yearlyPlan ->
+            binding.btnYearly.apply {
+                findViewById<TextView>(R.id.tv2).text = getTitleText(yearlyPlan.productId) // "VIP Year"
+
+                yearlyPlan.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
+                    findViewById<TextView>(R.id.tv4).text = phase.formattedPrice // "46,800đ"
+                    findViewById<TextView>(R.id.tv5).text = "per ${getPeriodText(phase.billingPeriod)}"
+                }
+            }
+        }
+
+        // Xử lý gói lifetime (one-time)
+        productDetailsMap[PRODUCT_ID_LIFETIME]?.let { lifetimePlan ->
+            binding.btnLifetime.apply {
+                findViewById<TextView>(R.id.tv2).text = getTitleText(lifetimePlan.productId) // "VIP Lifetime"
+                findViewById<TextView>(R.id.tv3).text = "One-time payment"
+
+                lifetimePlan.oneTimePurchaseOfferDetails?.let { offer ->
+                    findViewById<TextView>(R.id.tv4).text = offer.formattedPrice // "7,000đ"
+                    findViewById<TextView>(R.id.tv5).text = "forever"
+                }
+            }
+        }
+    }
+
+    // Hàm helper để chuyển billingPeriod thành text dễ đọc
+    private fun getPeriodText(billingPeriod: String): String {
+        return when {
+            billingPeriod.contains("P1M") -> "month"
+            billingPeriod.contains("P1Y") -> "year"
+            billingPeriod.contains("P3M") -> "3 months"
+            billingPeriod.contains("P6M") -> "6 months"
+            else -> billingPeriod
+        }
+    }
+
+    private fun getTitleText(billingTitle: String): String {
+        return when {
+            billingTitle.contains(PRODUCT_ID_MONTH, ignoreCase = true) -> "Vip Month"
+            billingTitle.contains(PRODUCT_ID_YEAR, ignoreCase = true) -> "Vip Year"
+            billingTitle.contains(PRODUCT_ID_LIFETIME, ignoreCase = true) -> "Vip Lifetime"
+            else -> billingTitle
         }
     }
 
