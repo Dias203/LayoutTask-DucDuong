@@ -1,3 +1,4 @@
+
 package com.eco.musicplayer.audioplayer.music
 
 import android.util.Log
@@ -20,6 +21,7 @@ private lateinit var trialEligibilityChecker: TrialEligibilityChecker
 val BillingManager.productDetailsMap: StateFlow<Map<String, ProductDetails>>
     get() = _productDetailsMap.asStateFlow()
 
+val allProductDetails = mutableListOf<ProductDetails>()
 
 // Truy vấn toàn bộ thông tin chi tiết sản phẩm từ Google Play (cả Subscription và In-App Purchase)
 fun BillingManager.queryAllProductDetails() {
@@ -29,7 +31,6 @@ fun BillingManager.queryAllProductDetails() {
     }
     val inappProducts = Constants.inAppListProduct.filter { it == PRODUCT_ID_LIFETIME }
 
-    val allProductDetails = mutableListOf<ProductDetails>()
     var subsQueryCompleted = subsProducts.isEmpty()
     var inappQueryCompleted = inappProducts.isEmpty()
 
@@ -185,4 +186,11 @@ private fun checkForFreeTrial(offer: ProductDetails.SubscriptionOfferDetails) {
     } else {
         Log.i(TAG, "No free trial in this offer")
     }
+}
+
+// Lấy offerToken theo offerID
+fun getOfferToken(productDetails: ProductDetails, offerId: String? = null): String? {
+    val offerDetails = productDetails.subscriptionOfferDetails?.find { it.offerId == offerId }
+        ?: productDetails.subscriptionOfferDetails?.firstOrNull()
+    return offerDetails?.offerToken
 }

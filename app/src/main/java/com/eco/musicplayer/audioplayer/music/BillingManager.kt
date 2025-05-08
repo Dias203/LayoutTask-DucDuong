@@ -5,7 +5,6 @@ import android.app.Application
 import android.util.Log
 import android.widget.Toast
 import com.android.billingclient.api.*
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,7 +29,7 @@ class BillingManager(
 
 
     // Thêm TrialEligibilityChecker
-    private lateinit var trialEligibilityChecker: TrialEligibilityChecker
+    lateinit var trialEligibilityChecker: TrialEligibilityChecker
 
     /*// StateFlow để theo dõi trạng thái đủ điều kiện dùng thử
     val trialEligibilityMap: StateFlow<Map<String, Boolean>>
@@ -155,10 +154,14 @@ class BillingManager(
             }
             .build()
     }
-    fun launchBillingFlow(productDetails: ProductDetails) {
-        val productDetailsParams = createProductDetailsParams(productDetails) ?: return
+    fun launchBillingFlow(productDetails: ProductDetails, offerToken: String) {
+        //val productDetailsParams = createProductDetailsParams(productDetails) ?: return
+        val paramsDetail = BillingFlowParams.ProductDetailsParams.newBuilder()
+            .setProductDetails(productDetails)
+            .setOfferToken(offerToken)
+            .build()
         val billingFlowParams = BillingFlowParams.newBuilder()
-            .setProductDetailsParamsList(listOf(productDetailsParams))
+            .setProductDetailsParamsList(listOf(paramsDetail))
             .build()
 
         billingClient.launchBillingFlow(activity, billingFlowParams)
@@ -272,20 +275,7 @@ class BillingManager(
         }
     }
 
-    private fun checkAndRecordTrialUsage(purchase: Purchase) {
-        val productDetailsMapValue =
-            productDetailsMap.value // Truy cập thông qua property của BillingManager
-        val isFreeTrial = purchase.products.any { productId ->
-            productDetailsMapValue[productId]?.subscriptionOfferDetails?.any { offer ->
-                offer.pricingPhases.pricingPhaseList.any { phase ->
-                    phase.priceAmountMicros == 0L
-                }
-            } ?: false
-        }
-        if (isFreeTrial) {
-            Log.d(TAG, "Người dùng đã bắt đầu dùng thử miễn phí cho ${purchase.products}")
-        }
-    }
+
 
     private fun acknowledgePurchase(purchase: Purchase) {
         val params = AcknowledgePurchaseParams.newBuilder()
@@ -345,3 +335,5 @@ class BillingManager(
         }
     }
 }
+
+
