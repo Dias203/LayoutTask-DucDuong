@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 private const val TAG = "BillingManager"
 
-class BillingManager(
+class OldBillingManager(
     private val activity: Activity,
     application: Application,
     private val billingListener: BillingListener
@@ -58,7 +58,7 @@ class BillingManager(
                     when (billingResult.responseCode) {
                         BillingClient.BillingResponseCode.OK -> {
                             Log.d(TAG, "Billing connection success")
-                            queryAllProductDetails() // Gọi extension function
+                            queryAllSkuDetails() // Gọi extension function
                             queryUserPurchases()
                             // Gọi refreshTrialEligibility sau khi đã có cả thông tin sản phẩm và giao dịch mua
                             refreshTrialEligibility()
@@ -77,7 +77,7 @@ class BillingManager(
                 }
             })
         } else {
-            queryAllProductDetails() // Gọi extension function
+            queryAllSkuDetails() // Gọi extension function
         }
     }
     // endregion
@@ -138,95 +138,110 @@ class BillingManager(
     // endregion
 
     // region Billing Flow
-    fun launchBillingFlow(productDetails: ProductDetails, offerToken: String? = null) {
-        val paramsDetailBuilder = BillingFlowParams.ProductDetailsParams.newBuilder()
-            .setProductDetails(productDetails)
-
-        offerToken?.let {
-            paramsDetailBuilder.setOfferToken(it).build()
+    fun launchBillingFlow(skuDetails: SkuDetails) {
+        // Kiểm tra trạng thái BillingClient
+        if (!billingClient.isReady()) {
+            Log.e(TAG, "BillingClient is not ready")
+            Toast.makeText(context, "Dịch vụ thanh toán không sẵn sàng", Toast.LENGTH_SHORT).show()
+            return
         }
 
-        val paramsDetail = paramsDetailBuilder.build()
+        // Kiểm tra xem SkuDetails có hợp lệ không
+        if (skuDetails.sku.isEmpty()) {
+            Log.e(TAG, "Invalid SkuDetails: SKU is empty")
+            Toast.makeText(context, "Thông tin sản phẩm không hợp lệ", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Tạo BillingFlowParams cho sản phẩm
         val billingFlowParams = BillingFlowParams.newBuilder()
-            .setProductDetailsParamsList(listOf(paramsDetail))
+            .setSkuDetails(skuDetails)
             .build()
 
-        billingClient.launchBillingFlow(activity, billingFlowParams)
+        // Khởi chạy quy trình thanh toán
+        val result = billingClient.launchBillingFlow(activity, billingFlowParams)
+        if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+            Log.e(TAG, "Failed to launch billing flow: ${result.responseCode}")
+            Toast.makeText(context, "Không thể khởi động thanh toán: ${result.responseCode}", Toast.LENGTH_SHORT).show()
+        } else {
+            Log.d(TAG, "Billing flow launched for ${skuDetails.sku}")
+        }
     }
 
     // Quy trình cấp gói
-    fun launchBillingFlowForUpgrade(productDetails: ProductDetails, oldProductId: String) {
-        val oldPurchaseToken = getOldPurchaseToken(oldProductId) ?: run {
-            Log.e(TAG, "No valid purchase token found for $oldProductId")
+    fun launchBillingFlowForUpgrade(skuDetails: SkuDetails, oldSkuId: String) {
+        // Lấy purchase token của đăng ký cũ
+        val oldPurchaseToken = getOldPurchaseToken(oldSkuId) ?: run {
+            Log.e(TAG, "No valid purchase token found for $oldSkuId")
             Toast.makeText(context, "Không tìm thấy giao dịch trước đó", Toast.LENGTH_SHORT).show()
             return
         }
 
-        if (productDetails.productType != BillingClient.ProductType.SUBS) {
-            Log.e(TAG, "Unsupported product type for upgrade: ${productDetails.productType}")
+        // Kiểm tra xem sản phẩm có phải là đăng ký hay không
+        if (skuDetails.type != BillingClient.SkuType.SUBS) {
+            Log.e(TAG, "Unsupported product type for upgrade: ${skuDetails.type}")
+            Toast.makeText(context, "Sản phẩm không phải là đăng ký", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: run {
-            Log.e(TAG, "No offer token for subscription: ${productDetails.title}")
+        // Kiểm tra trạng thái BillingClient
+        if (!billingClient.isReady()) {
+            Log.e(TAG, "BillingClient is not ready")
+            Toast.makeText(context, "Dịch vụ thanh toán không sẵn sàng", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
-            .setProductDetails(productDetails)
-            .setOfferToken(offerToken)
-            .build()
-
-        val subscriptionUpdateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
-            .setOldPurchaseToken(oldPurchaseToken)
-            .setSubscriptionReplacementMode(BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.CHARGE_FULL_PRICE)
-            .build()
-
+        // Tạo BillingFlowParams cho sản phẩm mới
         val billingFlowParams = BillingFlowParams.newBuilder()
-            .setProductDetailsParamsList(listOf(productDetailsParams))
-            .setSubscriptionUpdateParams(subscriptionUpdateParams)
+            .setSkuDetails(skuDetails)
+            // Trong Billing Library < 5.0, không cần setOldSku hoặc SubscriptionUpdateParams
+            // Google Play tự xử lý nâng cấp dựa trên giao dịch hiện tại
             .build()
 
-        billingClient.launchBillingFlow(activity, billingFlowParams)
+        // Khởi chạy quy trình thanh toán
+        val result = billingClient.launchBillingFlow(activity, billingFlowParams)
+        if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+            Log.e(TAG, "Failed to launch billing flow: ${result.responseCode}")
+            Toast.makeText(context, "Không thể khởi động thanh toán", Toast.LENGTH_SHORT).show()
+        } else {
+            Log.d(TAG, "Billing flow launched for upgrade to ${skuDetails.sku}, old purchase token: $oldPurchaseToken")
+        }
     }
 
 
     // Quy trình hạ cấp gói
-    fun launchBillingFlowForDowngrade(productDetails: ProductDetails, oldProductId: String) {
-        val oldPurchaseToken = getOldPurchaseToken(oldProductId) ?: run {
-            Log.e(TAG, "No valid purchase token found for $oldProductId")
-            Toast.makeText(context, "Không tìm thấy giao dịch trước đó", Toast.LENGTH_SHORT).show()
+    fun launchBillingFlowForDowngrade(skuDetails: SkuDetails, oldSkuId: String) {
+        // Lấy purchase token của đăng ký cũ
+        val oldPurchaseToken = getOldPurchaseToken(oldSkuId) ?: run {
+            Log.e(TAG, "No valid purchase token found for $oldSkuId")
             return
         }
 
-        if (productDetails.productType != BillingClient.ProductType.SUBS) {
-            Log.e(TAG, "Unsupported product type for downgrade: ${productDetails.productType}")
+        // Kiểm tra xem sản phẩm có phải là đăng ký hay không
+        if (skuDetails.type != BillingClient.SkuType.SUBS) {
+            Log.e(TAG, "Unsupported product type for downgrade: ${skuDetails.type}")
             return
         }
 
-        val offerToken = productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken ?: run {
-            Log.e(TAG, "No offer token for subscription: ${productDetails.title}")
+        // Kiểm tra trạng thái BillingClient
+        if (!billingClient.isReady) {
+            Log.e(TAG, "BillingClient is not ready")
             return
         }
 
-        val productDetailsParams = BillingFlowParams.ProductDetailsParams.newBuilder()
-            .setProductDetails(productDetails)
-            .setOfferToken(offerToken)
-            .build()
-
-        val subscriptionUpdateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
-            .setOldPurchaseToken(oldPurchaseToken)
-            .setSubscriptionReplacementMode(
-                BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITH_TIME_PRORATION
-            )
-            .build()
-
+        // Tạo BillingFlowParams cho sản phẩm mới
         val billingFlowParams = BillingFlowParams.newBuilder()
-            .setProductDetailsParamsList(listOf(productDetailsParams))
-            .setSubscriptionUpdateParams(subscriptionUpdateParams)
+            .setSkuDetails(skuDetails)
+            // Trong Billing Library < 5.0, không cần setOldSku, Google Play tự xử lý dựa trên purchaseToken
             .build()
 
-        billingClient.launchBillingFlow(activity, billingFlowParams)
+        // Khởi chạy quy trình thanh toán
+        val result = billingClient.launchBillingFlow(activity, billingFlowParams)
+        if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+            Log.e(TAG, "Failed to launch billing flow: ${result.responseCode}")
+        } else {
+            Log.d(TAG, "Billing flow launched for downgrade to ${skuDetails.sku}, old purchase token: $oldPurchaseToken")
+        }
     }
     // endregion
 
@@ -280,7 +295,7 @@ class BillingManager(
         trialEligibilityChecker = TrialEligibilityChecker(billingClient)
 
         // Liên kết với productDetailsMap
-        TrialEligibilityChecker.listenToProductDetails(productDetailsMap)
+        TrialEligibilityChecker.listenToSkuDetails(skuDetailsMap)
     }
 
     // Làm mới trạng thái đủ điều kiện dùng thử

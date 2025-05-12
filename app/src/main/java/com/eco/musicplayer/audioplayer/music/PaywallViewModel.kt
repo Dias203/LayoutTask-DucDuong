@@ -1,6 +1,9 @@
 package com.eco.musicplayer.audioplayer.music
 
+import android.app.Activity
+import android.app.Application
 import android.content.SharedPreferences
+import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.billingclient.api.ProductDetails
@@ -13,13 +16,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class PaywallViewModel(
-    private val billingManager: BillingManager,
-    private val sharedPreferences: SharedPreferences
+    private val sharedPreferences: SharedPreferences,
+    activity: Activity,
+    application: Application
 ) : ViewModel(), BillingListener {
 
     companion object {
         const val PURCHASED_PRODUCTS_KEY = "purchasedProducts"
     }
+
+    private val billingManager: BillingManager = BillingManager(activity, application, this)
+    private val oldBillingManager: OldBillingManager = OldBillingManager(activity, application, this)
 
     // State flows for UI observation
     private val _productDetailsMap = MutableStateFlow<Map<String, ProductDetails>>(emptyMap())
@@ -45,6 +52,15 @@ class PaywallViewModel(
     private fun loadInitialData() {
         viewModelScope.launch {
             loadPurchasedProductsFromPrefs()
+            // Có thể gọi thêm các hàm khởi tạo từ billingManager nếu cần
+
+            // kiểm tra phiên bản kết nối
+            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                billingManager.setupBillingConnection()
+            }
+            else{
+                oldBillingManager.setupBillingConnection()
+            }
         }
     }
 
@@ -145,11 +161,13 @@ class PaywallViewModel(
     override fun onPurchaseCancelled() {
         _uiState.value = PaywallUiState.Error("Purchase cancelled")
     }
-}
+    fun endBillingConnection() {
+        billingManager.endConnection()
+    }
 
-sealed class PaywallUiState {
-    data object Loading : PaywallUiState()
-    data object Loaded : PaywallUiState()
-    data class PurchaseSuccess(val productId: String) : PaywallUiState()
-    data class Error(val message: String) : PaywallUiState()
+    override fun onCleared() {
+        super.onCleared()
+        // Đảm bảo đóng kết nối khi ViewModel bị hủy
+        billingManager.endConnection()
+    }
 }

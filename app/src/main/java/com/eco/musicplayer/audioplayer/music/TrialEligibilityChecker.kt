@@ -7,6 +7,7 @@ import com.android.billingclient.api.Purchase
 import com.android.billingclient.api.PurchaseHistoryRecord
 import com.android.billingclient.api.QueryPurchaseHistoryParams
 import com.android.billingclient.api.QueryPurchasesParams
+import com.android.billingclient.api.SkuDetails
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -236,12 +237,18 @@ class TrialEligibilityChecker(private val billingClient: BillingClient) {
     companion object {
         // Tham chiếu tới StateFlow chứa thông tin sản phẩm
         private val _productDetailsMap = MutableStateFlow<Map<String, ProductDetails>>(emptyMap())
+        private val _skuDetailsMap = MutableStateFlow<Map<String, SkuDetails>>(emptyMap())
 
         // Đăng ký lắng nghe thay đổi từ BillingManager
         fun listenToProductDetails(productDetailsMap: StateFlow<Map<String, ProductDetails>>) {
             // Trong thực tế, bạn sẽ sử dụng coroutines hoặc RxJava để collect StateFlow này
             // Đây chỉ là ví dụ đơn giản cho việc cập nhật giá trị
             _productDetailsMap.value = productDetailsMap.value
+        }
+        fun listenToSkuDetails(skuDetailsMap: StateFlow<Map<String, SkuDetails>>) {
+            // Trong thực tế, bạn sẽ sử dụng coroutines hoặc RxJava để collect StateFlow này
+            // Đây chỉ là ví dụ đơn giản cho việc cập nhật giá trị
+            _skuDetailsMap.value = skuDetailsMap.value
         }
     }
 }
