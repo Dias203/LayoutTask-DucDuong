@@ -18,6 +18,7 @@ import androidx.appcompat.widget.AppCompatImageView
 import androidx.lifecycle.lifecycleScope
 import com.android.billingclient.api.ProductDetails
 import com.eco.musicplayer.audioplayer.music.databinding.ActivityPaywallBinding
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 class PaywallActivity : AppCompatActivity() {
@@ -59,26 +60,29 @@ class PaywallActivity : AppCompatActivity() {
             }
         }
 
-        // Quan sát chi tiết sản phẩm
+        // Quan sát productDetailsMap và selectedProductId để cập nhật UI
         lifecycleScope.launch {
-            viewModel.productDetailsMap.collect { map ->
-                if (map.isNotEmpty()) {
+            viewModel.productDetailsMap.combine(viewModel.selectedProductId) { map, selectedId ->
+                Pair(map, selectedId)
+            }.collect { (map, selectedId) ->
+                if (map.isNotEmpty() && selectedId != null) {
                     setupPlanTexts(map)
+                    updateSelectedPlanUi(selectedId)
                 }
             }
         }
 
-        // Quan sát sản phẩm đã mua
+        // Quan sát purchasedProducts
         lifecycleScope.launch {
             viewModel.purchasedProducts.collect { products ->
                 updatePlanSelectionBasedOnPurchases(products)
             }
         }
 
-        // Quan sát sản phẩm đã chọn
+        // Quan sát selectedOfferToken để bật/tắt btnStartFreeTrial
         lifecycleScope.launch {
-            viewModel.selectedProductId.collect { productId ->
-                productId?.let { updateSelectedPlanUi(it) }
+            viewModel.selectedOfferToken.collect { offerToken ->
+                binding.btnStartFreeTrial.isEnabled = !offerToken.isNullOrEmpty()
             }
         }
     }
@@ -122,36 +126,37 @@ class PaywallActivity : AppCompatActivity() {
                 val firstOffer = monthlyPlan.subscriptionOfferDetails?.firstOrNull()
                 val lastOffer = monthlyPlan.subscriptionOfferDetails?.lastOrNull()
 
-                // Kiểm tra xem có firstOffer hay không
-                if (firstOffer?.pricingPhases?.pricingPhaseList?.firstOrNull() != null && viewModel.selectedProductId.value == PRODUCT_ID_MONTH) {
-                    // Trường hợp có firstOffer (ưu đãi)
+                // Hiển thị ưu đãi trên tv3 nếu có
+                if (firstOffer?.pricingPhases?.pricingPhaseList?.firstOrNull() != null) {
                     firstOffer.pricingPhases.pricingPhaseList.first().let { phase ->
                         findViewById<TextView>(R.id.tv3).apply {
                             text = "${phase.formattedPrice} cho 14 ngày, gia hạn sau ${parsePeriodToReadableText(phase.billingPeriod)}"
                             visibility = View.VISIBLE
-                            // Cập nhật tvSub với nội dung của tv3
-                            binding.tvSub.text = text
-                            binding.tvSub.visibility = View.VISIBLE
                         }
-                    }
-                } else if (lastOffer?.pricingPhases?.pricingPhaseList?.firstOrNull() != null && viewModel.selectedProductId.value == PRODUCT_ID_MONTH) {
-                    // Trường hợp không có firstOffer, sử dụng giá từ tv4 và chu kỳ từ tv5
-                    lastOffer.pricingPhases.pricingPhaseList.first().let { phase ->
-                        findViewById<TextView>(R.id.tv3).visibility = View.GONE
-                        val tv4 = findViewById<TextView>(R.id.tv4).apply {
-                            text = phase.formattedPrice
-                        }
-                        val tv5 = findViewById<TextView>(R.id.tv5).apply {
-                            text = parsePeriodToReadableText(phase.billingPeriod)
-                        }
-                        // Cập nhật tvSub với giá từ tv4 và chu kỳ từ tv5
-                        binding.tvSub.text = "${tv4.text}/${tv5.text}"
-                        binding.tvSub.visibility = View.VISIBLE
                     }
                 } else {
-                    // Trường hợp không có dữ liệu hợp lệ
                     findViewById<TextView>(R.id.tv3).visibility = View.GONE
-                    if (viewModel.selectedProductId.value == PRODUCT_ID_MONTH) {
+                }
+
+                // Cập nhật tvSub chỉ cho gói được chọn
+                if (viewModel.selectedProductId.value == PRODUCT_ID_MONTH) {
+                    if (firstOffer?.pricingPhases?.pricingPhaseList?.firstOrNull() != null) {
+                        firstOffer.pricingPhases.pricingPhaseList.first().let { phase ->
+                            binding.tvSub.text = "${phase.formattedPrice} cho 14 ngày, gia hạn sau ${parsePeriodToReadableText(phase.billingPeriod)}"
+                            binding.tvSub.visibility = View.VISIBLE
+                        }
+                    } else if (lastOffer?.pricingPhases?.pricingPhaseList?.firstOrNull() != null) {
+                        lastOffer.pricingPhases.pricingPhaseList.first().let { phase ->
+                            val tv4 = findViewById<TextView>(R.id.tv4).apply {
+                                text = phase.formattedPrice
+                            }
+                            val tv5 = findViewById<TextView>(R.id.tv5).apply {
+                                text = parsePeriodToReadableText(phase.billingPeriod)
+                            }
+                            binding.tvSub.text = "${tv4.text}/${tv5.text}"
+                            binding.tvSub.visibility = View.VISIBLE
+                        }
+                    } else {
                         binding.tvSub.visibility = View.GONE
                     }
                 }
@@ -172,13 +177,39 @@ class PaywallActivity : AppCompatActivity() {
                 val firstOffer = yearlyPlan.subscriptionOfferDetails?.firstOrNull()
                 val lastOffer = yearlyPlan.subscriptionOfferDetails?.lastOrNull()
 
-                firstOffer?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
-                    findViewById<TextView>(R.id.tv3).apply {
-                        text = "${phase.formattedPrice} cho 1 năm, gia hạn sau ${parsePeriodToReadableText(phase.billingPeriod)}"
-                        visibility = View.VISIBLE
+                // Hiển thị ưu đãi trên tv3 nếu có
+                if (firstOffer?.pricingPhases?.pricingPhaseList?.firstOrNull() != null) {
+                    firstOffer.pricingPhases.pricingPhaseList.first().let { phase ->
+                        findViewById<TextView>(R.id.tv3).apply {
+                            text = "${phase.formattedPrice} cho 1 năm, gia hạn sau ${parsePeriodToReadableText(phase.billingPeriod)}"
+                            visibility = View.VISIBLE
+                        }
                     }
-                } ?: run {
+                } else {
                     findViewById<TextView>(R.id.tv3).visibility = View.GONE
+                }
+
+                // Cập nhật tvSub chỉ cho gói được chọn
+                if (viewModel.selectedProductId.value == PRODUCT_ID_YEAR) {
+                    if (firstOffer?.pricingPhases?.pricingPhaseList?.firstOrNull() != null) {
+                        firstOffer.pricingPhases.pricingPhaseList.first().let { phase ->
+                            binding.tvSub.text = "${phase.formattedPrice} cho 1 năm, gia hạn sau ${parsePeriodToReadableText(phase.billingPeriod)}"
+                            binding.tvSub.visibility = View.VISIBLE
+                        }
+                    } else if (lastOffer?.pricingPhases?.pricingPhaseList?.firstOrNull() != null) {
+                        lastOffer.pricingPhases.pricingPhaseList.first().let { phase ->
+                            val tv4 = findViewById<TextView>(R.id.tv4).apply {
+                                text = phase.formattedPrice
+                            }
+                            val tv5 = findViewById<TextView>(R.id.tv5).apply {
+                                text = parsePeriodToReadableText(phase.billingPeriod)
+                            }
+                            binding.tvSub.text = "${tv4.text}/${tv5.text}"
+                            binding.tvSub.visibility = View.VISIBLE
+                        }
+                    } else {
+                        binding.tvSub.visibility = View.GONE
+                    }
                 }
 
                 lastOffer?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
@@ -197,6 +228,12 @@ class PaywallActivity : AppCompatActivity() {
                 lifetimePlan.oneTimePurchaseOfferDetails?.let { offer ->
                     findViewById<TextView>(R.id.tv4).text = offer.formattedPrice
                     findViewById<TextView>(R.id.tv5).text = "forever"
+                }
+
+                // Cập nhật tvSub chỉ cho gói được chọn
+                if (viewModel.selectedProductId.value == PRODUCT_ID_LIFETIME) {
+                    binding.tvSub.text = "One-time payment: ${lifetimePlan.oneTimePurchaseOfferDetails?.formattedPrice}"
+                    binding.tvSub.visibility = View.VISIBLE
                 }
             }
         }
@@ -254,7 +291,7 @@ class PaywallActivity : AppCompatActivity() {
                     when (productId) {
                         PRODUCT_ID_MONTH -> {
                             binding.bestDeal.apply {
-                                text = "Đã m"
+                                text = "Đã mua"
                                 setBackgroundResource(R.drawable.bg_disable)
                             }
                         }
@@ -457,10 +494,5 @@ class PaywallActivity : AppCompatActivity() {
         findViewById<AppCompatImageView>(R.id.radioButton1).setImageResource(R.drawable.ic_uncheck)
         setBackgroundResource(R.drawable.bg_disable)
         alpha = 0.8f
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        viewModel.endBillingConnection()
     }
 }

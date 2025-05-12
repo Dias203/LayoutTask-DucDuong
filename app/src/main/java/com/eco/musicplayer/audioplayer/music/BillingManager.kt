@@ -107,7 +107,7 @@ class BillingManager(
                         if (purchase.products.contains(PRODUCT_ID_LIFETIME)) {
                             Log.d("Cancel Lifetime", "Cancel Lifetime")
                             //Hủy Lifetime phía dev
-                            consumePurchase(purchase)
+                            //consumePurchase(purchase)
                         }
                     }
                 }
@@ -290,7 +290,6 @@ class BillingManager(
         }
     }
 
-
     // Kiểm tra nhanh xem người dùng có đủ điều kiện dùng thử một sản phẩm không
     fun isEligibleForTrial(productId: String): Boolean {
         return if (this::trialEligibilityChecker.isInitialized) {
@@ -319,13 +318,6 @@ class BillingManager(
             } else {
                 Log.i(TAG, "Lỗi khi tiêu thụ: ${billingResult.debugMessage}")
             }
-        }
-    }
-
-    fun endConnection() {
-        if (billingClient.isReady) {
-            billingClient.endConnection()
-            Log.d(TAG, "Billing connection closed")
         }
     }
 }

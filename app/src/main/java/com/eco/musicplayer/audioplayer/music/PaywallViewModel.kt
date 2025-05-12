@@ -26,7 +26,6 @@ class PaywallViewModel(
     }
 
     private val billingManager: BillingManager = BillingManager(activity, application, this)
-    private val oldBillingManager: OldBillingManager = OldBillingManager(activity, application, this)
 
     // State flows for UI observation
     private val _productDetailsMap = MutableStateFlow<Map<String, ProductDetails>>(emptyMap())
@@ -52,14 +51,13 @@ class PaywallViewModel(
     private fun loadInitialData() {
         viewModelScope.launch {
             loadPurchasedProductsFromPrefs()
-            // Có thể gọi thêm các hàm khởi tạo từ billingManager nếu cần
-
-            // kiểm tra phiên bản kết nối
-            if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                billingManager.setupBillingConnection()
-            }
-            else{
-                oldBillingManager.setupBillingConnection()
+            billingManager.setupBillingConnection()
+            // Chờ productDetailsMap có dữ liệu
+            billingManager.productDetailsMap.collect { map ->
+                if (map.isNotEmpty() && _selectedProductId.value == null && _purchasedProducts.value.isEmpty()) {
+                    _selectedProductId.value = PRODUCT_ID_MONTH
+                    selectPlan(PRODUCT_ID_MONTH) // Gọi để cập nhật offerToken
+                }
             }
         }
     }
@@ -68,11 +66,6 @@ class PaywallViewModel(
         withContext(Dispatchers.IO) {
             val savedProducts = sharedPreferences.getStringSet(PURCHASED_PRODUCTS_KEY, emptySet()) ?: emptySet()
             _purchasedProducts.value = savedProducts
-
-            if (savedProducts.isEmpty()) {
-                _selectedProductId.value = PRODUCT_ID_MONTH
-            }
-
             _uiState.value = PaywallUiState.Loaded
         }
     }
@@ -160,14 +153,5 @@ class PaywallViewModel(
 
     override fun onPurchaseCancelled() {
         _uiState.value = PaywallUiState.Error("Purchase cancelled")
-    }
-    fun endBillingConnection() {
-        billingManager.endConnection()
-    }
-
-    override fun onCleared() {
-        super.onCleared()
-        // Đảm bảo đóng kết nối khi ViewModel bị hủy
-        billingManager.endConnection()
     }
 }

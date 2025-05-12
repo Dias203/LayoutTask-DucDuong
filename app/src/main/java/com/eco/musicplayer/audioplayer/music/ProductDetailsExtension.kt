@@ -26,21 +26,25 @@ val allProductDetails = mutableListOf<ProductDetails>()
 // Truy vấn toàn bộ thông tin chi tiết sản phẩm từ Google Play (cả Subscription và In-App Purchase)
 fun BillingManager.queryAllProductDetails() {
     // Lọc ra các sản phẩm đăng ký và mua một lần cần truy vấn
+    val subsProducts = ConstantsProductID.subsListProduct.filter {
+        it in listOf(PRODUCT_ID_MONTH, PRODUCT_ID_YEAR, PRODUCT_ID_FREE_TRIAL)
+    }
+    val inappProducts = ConstantsProductID.inAppListProduct.filter { it == PRODUCT_ID_LIFETIME }
 
-    var subsQueryCompleted = ConstantsProductID.subsListProduct.isEmpty()
-    var inAppQueryCompleted = ConstantsProductID.inAppListProduct.isEmpty()
+    var subsQueryCompleted = subsProducts.isEmpty()
+    var inappQueryCompleted = inappProducts.isEmpty()
 
     // Hàm kiểm tra cả hai truy vấn hoàn thành để xử lý tiếp
     fun checkAndProcess() {
-        if (subsQueryCompleted && inAppQueryCompleted) {
+        if (subsQueryCompleted && inappQueryCompleted) {
             processAllProductDetails(allProductDetails)
         }
     }
 
     // Truy vấn subscription
-    if (ConstantsProductID.subsListProduct.isNotEmpty()) {
+    if (subsProducts.isNotEmpty()) {
         queryProductDetails(
-            productIds = ConstantsProductID.subsListProduct,
+            productIds = subsProducts,
             productType = BillingClient.ProductType.SUBS,
             onComplete = { products ->
                 allProductDetails.addAll(products)
@@ -51,13 +55,13 @@ fun BillingManager.queryAllProductDetails() {
     }
 
     // Truy vấn sản phẩm mua một lần
-    if (ConstantsProductID.inAppListProduct.isNotEmpty()) {
+    if (inappProducts.isNotEmpty()) {
         queryProductDetails(
-            productIds = ConstantsProductID.inAppListProduct,
+            productIds = inappProducts,
             productType = BillingClient.ProductType.INAPP,
             onComplete = { products ->
                 allProductDetails.addAll(products)
-                inAppQueryCompleted = true
+                inappQueryCompleted = true
                 checkAndProcess()
             }
         )
@@ -182,4 +186,11 @@ private fun checkForFreeTrial(offer: ProductDetails.SubscriptionOfferDetails) {
     } else {
         Log.i(TAG, "No free trial in this offer")
     }
+}
+
+// Lấy offerToken theo offerID
+fun getOfferToken(productDetails: ProductDetails, offerId: String? = null): String? {
+    val offerDetails = productDetails.subscriptionOfferDetails?.find { it.offerId == offerId }
+        ?: productDetails.subscriptionOfferDetails?.firstOrNull()
+    return offerDetails?.offerToken
 }
