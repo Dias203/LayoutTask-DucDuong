@@ -54,7 +54,7 @@ class TrialEligibilityChecker(private val billingClient: BillingClient) {
     /**
      * Kiểm tra xem một sản phẩm có cung cấp giai đoạn dùng thử không
      */
-    private fun hasTrialOffer(product: ProductDetails): Boolean {
+    fun hasTrialOffer(product: ProductDetails): Boolean {
         return product.subscriptionOfferDetails?.any { offer ->
             offer.pricingPhases.pricingPhaseList.any { it.priceAmountMicros == 0L }
         } ?: false

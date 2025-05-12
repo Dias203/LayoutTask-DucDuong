@@ -26,10 +26,10 @@ val allProductDetails = mutableListOf<ProductDetails>()
 // Truy vấn toàn bộ thông tin chi tiết sản phẩm từ Google Play (cả Subscription và In-App Purchase)
 fun BillingManager.queryAllProductDetails() {
     // Lọc ra các sản phẩm đăng ký và mua một lần cần truy vấn
-    val subsProducts = Constants.subsListProduct.filter {
+    val subsProducts = ConstantsProductID.subsListProduct.filter {
         it in listOf(PRODUCT_ID_MONTH, PRODUCT_ID_YEAR, PRODUCT_ID_FREE_TRIAL)
     }
-    val inappProducts = Constants.inAppListProduct.filter { it == PRODUCT_ID_LIFETIME }
+    val inappProducts = ConstantsProductID.inAppListProduct.filter { it == PRODUCT_ID_LIFETIME }
 
     var subsQueryCompleted = subsProducts.isEmpty()
     var inappQueryCompleted = inappProducts.isEmpty()
@@ -117,7 +117,7 @@ private fun logProductDetails(product: ProductDetails) {
         BillingClient.ProductType.SUBS -> {
             product.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()
                 ?.let { phase ->
-                    Log.d(TAG, "Subscription - ${product.productId}: ${phase.formattedPrice}, ${phase.billingPeriod}")
+                    Log.d(TAG, "Subscription - ${product.productId}: ${phase.formattedPrice}, ${phase.billingPeriod}, ")
                 } ?: Log.e(TAG, "No pricing phases available for ${product.productId}")
         }
         BillingClient.ProductType.INAPP -> {

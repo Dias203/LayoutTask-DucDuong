@@ -19,13 +19,11 @@ class BillingManager(
 
     private val context = application.applicationContext
 
-    // State flows (chỉ giữ lại những state cần thiết trong BillingManager)
+    // State flows
     private val _purchasedProductIds = MutableStateFlow<Set<String>>(emptySet())
-    val purchasedProductIds: StateFlow<Set<String>> = _purchasedProductIds.asStateFlow()
     private val _purchases = MutableStateFlow<List<Purchase>>(emptyList())
-    val purchases: StateFlow<List<Purchase>> = _purchases.asStateFlow()
 
-    internal val billingClient by lazy { createBillingClient() } // Để internal cho extension function dùng
+    internal val billingClient by lazy { createBillingClient() }
 
 
     // Thêm TrialEligibilityChecker
@@ -89,11 +87,13 @@ class BillingManager(
     }
 
     // region Purchases
+    // Truy vấn tất cả giao dịch của người dùng (cho cả sản phẩm in-app và subscriptions)
     private fun queryUserPurchases() {
         queryPurchases(BillingClient.ProductType.SUBS)
         queryPurchases(BillingClient.ProductType.INAPP)
     }
 
+    // Truy vấn giao dịch theo loại sản phẩm
     private fun queryPurchases(productType: String) {
         billingClient.queryPurchasesAsync(
             QueryPurchasesParams.newBuilder()
@@ -104,7 +104,7 @@ class BillingManager(
                 handleAllPurchases(purchasesList)
                 if (productType == BillingClient.ProductType.INAPP) {
                     purchasesList.forEach { purchase ->
-                        if (purchase.products.contains("musicplayer_vip_lifetime")) {
+                        if (purchase.products.contains(PRODUCT_ID_LIFETIME)) {
                             Log.d("Cancel Lifetime", "Cancel Lifetime")
                             //Hủy Lifetime phía dev
                             //consumePurchase(purchase)
@@ -128,6 +128,7 @@ class BillingManager(
         Log.d(TAG, "Updated purchasedProductIds: $newPurchasedProductIds")
     }
 
+    // Lấy purchaseToken của giao dịch gần nhất cho một sản phẩm cụ thể.
     private fun getOldPurchaseToken(productId: String): String? {
         return _purchases.value
             .filter { it.products.contains(productId) && it.purchaseState == Purchase.PurchaseState.PURCHASED }
@@ -137,29 +138,15 @@ class BillingManager(
     // endregion
 
     // region Billing Flow
+    fun launchBillingFlow(productDetails: ProductDetails, offerToken: String? = null) {
+        val paramsDetailBuilder = BillingFlowParams.ProductDetailsParams.newBuilder()
+            .setProductDetails(productDetails)
 
-    //tạo tham số chi tiết sản phẩm cho luồng thanh toán
-    fun createProductDetailsParams(productDetails: ProductDetails): BillingFlowParams.ProductDetailsParams? {
-        return BillingFlowParams.ProductDetailsParams.newBuilder()
-            .setProductDetails(productDetails)
-            .apply {
-                if (productDetails.productType == BillingClient.ProductType.SUBS) {
-                    productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken?.let {
-                        setOfferToken(it)
-                    } ?: run {
-                        Log.e(TAG, "No offer token for subscription: ${productDetails.title}")
-                        return null
-                    }
-                }
-            }
-            .build()
-    }
-    fun launchBillingFlow(productDetails: ProductDetails, offerToken: String) {
-        //val productDetailsParams = createProductDetailsParams(productDetails) ?: return
-        val paramsDetail = BillingFlowParams.ProductDetailsParams.newBuilder()
-            .setProductDetails(productDetails)
-            .setOfferToken(offerToken)
-            .build()
+        offerToken?.let {
+            paramsDetailBuilder.setOfferToken(it).build()
+        }
+
+        val paramsDetail = paramsDetailBuilder.build()
         val billingFlowParams = BillingFlowParams.newBuilder()
             .setProductDetailsParamsList(listOf(paramsDetail))
             .build()
@@ -244,6 +231,7 @@ class BillingManager(
     // endregion
 
     // region Purchase Handling
+    // Xử lý kết quả của các giao dịch (mới, nâng cấp, hạ cấp).
     override fun onPurchasesUpdated(billingResult: BillingResult, purchases: List<Purchase>?) {
         when (billingResult.responseCode) {
             BillingClient.BillingResponseCode.OK -> {
@@ -255,8 +243,6 @@ class BillingManager(
                                 acknowledgePurchase(purchase)
                                 refreshTrialEligibility()
                             }
-                            /*checkAndRecordTrialUsage(purchase)
-                            billingListener.onPurchaseSuccess(purchase)*/
                         }
                         // Cập nhật trạng thái đủ điều kiện dùng thử
                         if (this::trialEligibilityChecker.isInitialized) {
@@ -275,8 +261,7 @@ class BillingManager(
         }
     }
 
-
-
+    // Xác nhận giao dịch với Google Play để hoàn tất quá trình mua hàng.
     private fun acknowledgePurchase(purchase: Purchase) {
         val params = AcknowledgePurchaseParams.newBuilder()
             .setPurchaseToken(purchase.purchaseToken)
@@ -321,6 +306,7 @@ class BillingManager(
     }
 
 
+    // Tiêu thụ giao dịch (dùng cho sản phẩm in-app tiêu thụ được).
     private fun consumePurchase(purchase: Purchase) {
         val consumeParams = ConsumeParams.newBuilder()
             .setPurchaseToken(purchase.purchaseToken)

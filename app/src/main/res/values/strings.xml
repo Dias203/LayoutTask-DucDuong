@@ -22,4 +22,16 @@
     </string>
     <string name="black_friday_offer">Black Friday Offer!</string>
     <string name="percent">Get 40% Off</string>
+
+<!--=============================================================================================-->
+    <string name="text_sub">Free cho %s đầu</string>
+    <string name="text_extend">Gia hạn sau</string>
+    <string name="text_day">ngày</string>
+    <string name="text_week">tuần</string>
+    <string name="text_month">tháng</string>
+    <string name="text_year">năm</string>
+    <string name="sub_week">Gói tuần</string>
+    <string name="sub_month">Gói tháng</string>
+    <string name="sub_year">Gói năm</string>
+    <string name="in_app">Trọn đời</string>
 </resources>

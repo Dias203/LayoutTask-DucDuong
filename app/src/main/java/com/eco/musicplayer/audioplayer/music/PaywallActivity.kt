@@ -14,6 +14,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.lifecycle.Lifecycle
@@ -22,7 +23,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
-import com.android.billingclient.api.QueryProductDetailsParams
 import com.eco.musicplayer.audioplayer.music.databinding.ActivityPaywallBinding
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -56,6 +56,7 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
     private val uiScope = lifecycleScope
 
     private var selectedOfferToken: String? = null
+    private val viewModel: PaywallViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -69,7 +70,7 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
 
     private fun initUI() {
         setupInitialSelectedPlan()
-         setupLimitedVersionText()
+        setupLimitedVersionText()
         setupTermsAndPrivacyText()
         setupPlanSelection()
         //setupBillingButton() // Gọi setupBillingButton ở đây, logic sẽ chạy khi có productDetails
@@ -109,8 +110,8 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                 billingManager.productDetailsMap.collectLatest { map ->
                     productDetailsMap = map
                     // Giờ đây setupBillingButton sẽ có dữ liệu
-                    setupPlanTexts(allProductDetails) // Gọi ở đây khi đã có dữ liệu
-                    setupBillingButton() // Cập nhật lại nút thanh toán
+                    setupPlanTexts() // Gọi ở đây khi đã có dữ liệu
+                    //setupBillingButton("") // Cập nhật lại nút thanh toán
                     observeFreeTrialAvailability()
                 }
             }
@@ -135,16 +136,16 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
      * Gắn sự kiện click cho nút “Start Free Trial” để bắt đầu quy trình thanh toán.
      * Nếu đang có gói khác thì gọi nâng cấp (launchBillingFlowForUpgrade()).
      */
-    private fun setupBillingButton() {
+    /*private fun setupBillingButton(offerToken: String) {
         binding.btnStartFreeTrial.setOnClickListener {
             selectedProductId?.let { newProductId ->
                 productDetailsMap[newProductId]?.let { productDetails ->
                     uiScope.launch {
                         val currentSubscription = purchasedProducts.value.firstOrNull {
-                            it in Constants.subsListProduct
+                            it in ConstantsProductID.subsListProduct
                         }
 
-                        if (currentSubscription != null && newProductId in Constants.subsListProduct
+                        if (currentSubscription != null && newProductId in ConstantsProductID.subsListProduct
                         ) {
                             // Kiểm tra nếu là nâng cấp
                             if (isUpgradeAllowed(currentSubscription, newProductId)) {
@@ -161,11 +162,14 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                             }
                         } else {
                             // Nếu không phải subscription hoặc chưa có gói hiện tại, cho phép mua
-                            Log.d(TAG, "setupBillingButton: $selectedOfferToken")
-                            billingManager.launchBillingFlow(productDetails = productDetails, offerToken = selectedOfferToken ?: "")
+                            Log.d(TAG, "setupBillingButton: $offerToken")
+                            billingManager.launchBillingFlow(
+                                productDetails = productDetails,
+                                offerToken = offerToken ?: ""
+                            )
                         }
 
-                        /*if (currentSubscription != null && newProductId in listOf("vip_month", "vip_year")) {
+                        *//*if (currentSubscription != null && newProductId in listOf("vip_month", "vip_year")) {
                             if (isUpgradeAllowed(currentSubscription, newProductId)) {
                                 billingManager.launchBillingFlowForUpgrade(productDetails, currentSubscription)
                             } else if (isDowngrade(currentSubscription, newProductId)) {
@@ -183,7 +187,7 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                                     Toast.LENGTH_SHORT
                                 ).show()
                             }
-                        }*/
+                        }*//*
 
                     }
                 } ?: run {
@@ -193,16 +197,56 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                         Toast.LENGTH_SHORT
                     ).show()
                 }
-            } ?: run {
-                Toast.makeText(
-                    applicationContext,
-                    "Vui lòng chọn gói trước!",
-                    Toast.LENGTH_SHORT
-                ).show()
+            }
+        }
+    }*/
+
+    private fun setupBillingButton(offerToken: String) {
+        binding.btnStartFreeTrial.setOnClickListener {
+            selectedProductId?.let { newProductId ->
+                productDetailsMap[newProductId]?.let { productDetails ->
+                    uiScope.launch {
+                        val currentSubscription = purchasedProducts.value.firstOrNull {
+                            it in ConstantsProductID.subsListProduct
+                        }
+
+                        if (newProductId == PRODUCT_ID_LIFETIME) {
+                            // Xử lý mua gói Lifetime (one-time purchase)
+                            Log.d(TAG, "setupBillingButton: Launching billing flow for lifetime")
+                            billingManager.launchBillingFlow(productDetails = productDetails)
+                        } else if (currentSubscription != null && newProductId in ConstantsProductID.subsListProduct) {
+                            // Kiểm tra nếu là nâng cấp
+                            if (isUpgradeAllowed(currentSubscription, newProductId)) {
+                                billingManager.launchBillingFlowForUpgrade(
+                                    productDetails = productDetails,
+                                    oldProductId = currentSubscription
+                                )
+                            } else {
+                                Toast.makeText(
+                                    applicationContext,
+                                    "Bạn chỉ có thể nâng cấp lên gói cao hơn!",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        } else {
+                            // Xử lý mua gói subscription mới
+                            Log.d(TAG, "setupBillingButton: Launching billing flow for sub with token: $offerToken")
+                            billingManager.launchBillingFlow(
+                                productDetails = productDetails,
+                                offerToken = offerToken
+                            )
+                        }
+                    }
+                } ?: run {
+                    Toast.makeText(
+                        applicationContext,
+                        "Không tìm thấy thông tin gói!",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         }
     }
-
 
     /*private fun isDowngrade(currentProductId: String, newProductId: String): Boolean {
         val priority = mapOf(
@@ -240,13 +284,14 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
             }
             binding.btnStartFreeTrial.apply {
                 isEnabled = false
-                text = "Purchased"
+                text = "Đã mua"
             }
             return
         }
 
         // Xử lý các gói subscription thông thường
-        val currentSubscription = currentPurchasedProducts.firstOrNull { it in listOf("vip_month", "vip_year") }
+        val currentSubscription =
+            currentPurchasedProducts.firstOrNull { it in listOf("vip_month", "vip_year") }
 
         buttons.forEach { (button, productId) ->
             when {
@@ -256,10 +301,11 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                     when (productId) {
                         PRODUCT_ID_MONTH -> {
                             binding.bestDeal.apply {
-                                text = "Purchased"
+                                text = "Đã m"
                                 setBackgroundResource(R.drawable.bg_disable)
                             }
                         }
+
                         PRODUCT_ID_YEAR -> {
                             binding.bestDeal2.apply {
                                 visibility = View.VISIBLE
@@ -267,6 +313,7 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                                 setBackgroundResource(R.drawable.bg_disable)
                             }
                         }
+
                         else -> {
                             binding.bestDeal3.apply {
                                 visibility = View.VISIBLE
@@ -277,7 +324,9 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                     }
                 }
                 // Nếu có gói hiện tại VÀ gói này thấp hơn -> disable (không ẩn)
-                currentSubscription != null && getSubscriptionLevel(productId) <= getSubscriptionLevel(currentSubscription) -> {
+                currentSubscription != null && getSubscriptionLevel(productId) <= getSubscriptionLevel(
+                    currentSubscription
+                ) -> {
                     button.isEnabled = false
                     button.alpha = 0.5f
                 }
@@ -301,7 +350,8 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
         }
 
         // Cập nhật text nút thanh toán
-        binding.btnStartFreeTrial.text = if (currentSubscription != null) "Upgrade Plan" else "Start Free Trial"
+        binding.btnStartFreeTrial.text =
+            if (currentSubscription != null) "Upgrade Plan" else "Start Free Trial"
     }
 
     private fun setupInitialSelectedPlan() {
@@ -310,6 +360,8 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
                 if (products.isEmpty()) {
                     selectPlan(binding.btnMonthly)
                     selectedProductId = PRODUCT_ID_MONTH
+                    binding.tvSub.text = "week"
+                    binding.tvSub.visibility = View.VISIBLE
                 } else {
                     selectedProductId = null
                     updatePlanSelectionBasedOnPurchases(products)
@@ -362,10 +414,16 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
             val icon = if (isSelected) R.drawable.ic_checked else R.drawable.ic_uncheck
             button.setBackgroundResource(background)
             button.findViewById<AppCompatImageView>(R.id.radioButton1).setImageResource(icon)
+
+            // Cập nhật tvSub dựa trên gói được chọn
+            if (isSelected) {
+                val tv3OfSelectedButton = button.findViewById<TextView>(R.id.tv3)
+                binding.tvSub.text = tv3OfSelectedButton.text
+                binding.tvSub.visibility = if (productId == PRODUCT_ID_LIFETIME) View.GONE else View.VISIBLE
+            }
         }
     }
     // Hủy gói life time
-
 
 
     // Xử lý Free Trial
@@ -382,8 +440,9 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
             Log.d("FreeTrial Available", "Bạn không còn lượt dùng thử")
         }
     }
-
-    /* @SuppressLint("SetTextI18n")
+    /*================================================================================================*/
+    /* Đầu tiên - chưa lấy được offerToken
+     @SuppressLint("SetTextI18n")
     private fun setupPlanTexts() {
         val productDetailsMap = billingManager.productDetailsMap.value
 
@@ -440,205 +499,375 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
     }
     */
 
-    @SuppressLint("SetTextI18n")
-    private fun setupPlanTexts(productDetailsList: List<ProductDetails>) {
-        var freeTrialOfferId1: String? = null
-        var freeTrialOfferId2: String? = null
-        var freeTrialOfferId3: String? = null
-        var offerTokenForMonthly: String? = null
+    /*================================================================================================*/
+    /*
+     // ĐÃ LẤY ĐƯỢC offerToken  NHƯNG CHỈ LÀ CHO THẰNG MONTH
+     @SuppressLint("SetTextI18n")
+     private fun setupPlanTexts(productDetailsList: List<ProductDetails>) {
+         var freeTrialOfferId1: String? = null
+         var freeTrialOfferId2: String? = null
+         var freeTrialOfferId3: String? = null
+         var offerTokenForMonthly: String? = null
 
-        // 1. Tìm offerId từ gói FREE_TRIAL
-        productDetailsList.forEach { productDetails ->
-            if (productDetails.productId == PRODUCT_ID_FREE_TRIAL) {
-                productDetails.subscriptionOfferDetails?.forEachIndexed { index, offer ->
-                    when (index) {
-                        0 -> {
-                            freeTrialOfferId1 = offer.offerId
-                            Log.d(TAG, "setupPlanTexts: FreeTrial offerId1 = $freeTrialOfferId1 - ${offer.offerToken}")
-                        }
-                        1 -> {
-                            freeTrialOfferId2 = offer.offerId
-                            Log.d(TAG, "setupPlanTexts: FreeTrial offerId2 = $freeTrialOfferId2 - ${offer.offerToken}")
-                        }
-                        2 -> {
-                            freeTrialOfferId3 = offer.offerId
-                            Log.d(TAG, "setupPlanTexts: FreeTrial offerId3 = $freeTrialOfferId3 - ${offer.offerToken}")
+         // 1. Tìm offerId từ gói FREE_TRIAL
+         productDetailsList.forEach { productDetails ->
+             if (productDetails.productId == PRODUCT_ID_MONTH) {
+                 productDetails.subscriptionOfferDetails?.forEachIndexed { index, offer ->
+                     Log.d(TAG, "setupPlanTexts Size: ${productDetails.subscriptionOfferDetails?.size}")
+                 when (index) {
+                     0 -> {
+                         freeTrialOfferId1 = offer.offerId
+                         Log.d(
+                             TAG,
+                             "setupPlanTexts: FreeTrial offerId1 = $freeTrialOfferId1 - ${offer.offerToken}"
+                         )
+                     }
+
+                     1 -> {
+                         freeTrialOfferId2 = offer.offerId
+                         Log.d(
+                             TAG,
+                             "setupPlanTexts: FreeTrial offerId2 = $freeTrialOfferId2 - ${offer.offerToken}"
+                         )
+                     }
+
+                     2 -> {
+                         freeTrialOfferId3 = offer.offerId
+                         Log.d(
+                             TAG,
+                             "setupPlanTexts: FreeTrial offerId3 = $freeTrialOfferId3 - ${offer.offerToken}"
+                         )
+                     }
+                 }
+             }
+                 val offer = productDetails.subscriptionOfferDetails?.firstOrNull()
+                 val period = offer?.pricingPhases?.pricingPhaseList?.firstOrNull()
+                 Log.d(TAG, "setupPlanTexts123: ${offer?.offerId} - ${period?.billingPeriod}")
+             }
+         }
+         val productDetailsMap = billingManager.productDetailsMap.value
+         val monthlyPlan = productDetailsMap[PRODUCT_ID_MONTH]
+         val yearlyPlan = productDetailsMap[PRODUCT_ID_YEAR]
+
+
+
+         // 2. Tìm offerToken từ gói MONTHLY khớp với offerId từ FREE_TRIAL
+         val matchedOffer = monthlyPlan?.subscriptionOfferDetails?.find {
+             it.offerId == freeTrialOfferId1
+         }
+         val matchedOffer2 = yearlyPlan?.subscriptionOfferDetails?.find {
+             it.offerId == freeTrialOfferId2
+         }
+
+
+         offerTokenForMonthly = matchedOffer?.offerToken
+
+         Log.d(TAG, "setupPlanTexts: offerTokenForMonthly = $offerTokenForMonthly")
+         Log.d(TAG, "setupPlanTexts: offerTokenForYearly = ${matchedOffer2?.offerToken}")
+
+         // 3. Update UI cho MONTHLY gói
+         productDetailsMap[PRODUCT_ID_MONTH]?.let { monthlyPlan ->
+             binding.btnMonthly.apply {
+                 findViewById<TextView>(R.id.tv2).text = getTitleText(monthlyPlan.productId)
+
+                 val matchedOfferMonth = monthlyPlan.subscriptionOfferDetails?.find {
+                     it.offerId == freeTrialOfferId1
+                 }
+
+                 // Gán offerToken nếu tìm được
+                 selectedOfferToken = matchedOffer?.offerToken
+
+
+
+                 /*matchedOfferMonth?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
+                     findViewById<TextView>(R.id.tv4).text = phase.formattedPrice
+                     findViewById<TextView>(R.id.tv5).text = "per ${parsePeriodToReadableText(phase.billingPeriod)}"
+                 }*/
+
+                 /*matchedOfferMonth?.pricingPhases?.pricingPhaseList?.lastOrNull()?.let { phase ->
+                     findViewById<TextView>(R.id.tv4).text = phase.formattedPrice
+                     findViewById<TextView>(R.id.tv5).text = "per ${parsePeriodToReadableText(phase.billingPeriod)}"
+                 }*/
+                 matchedOfferMonth?.pricingPhases?.pricingPhaseList?.let { phaseList ->
+                     val phaseToShow = if (phaseList.size > 1) {
+                         phaseList.first() // có offer → dùng offer
+                     } else {
+                         phaseList.last()  // chỉ còn base
+                     }
+
+                     findViewById<TextView>(R.id.tv4).text = phaseToShow.formattedPrice
+                     findViewById<TextView>(R.id.tv5).text = "per ${parsePeriodToReadableText(phaseToShow.billingPeriod)}"
+                 }
+
+
+             }
+         }
+         // Xử lý gói yearly (subscription)
+         productDetailsMap[PRODUCT_ID_YEAR]?.let { yearlyPlan ->
+             binding.btnYearly.apply {
+                 findViewById<TextView>(R.id.tv2).text = yearlyPlan.productId // "VIP Year"
+
+                 yearlyPlan.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
+                     findViewById<TextView>(R.id.tv4).text = phase.formattedPrice // "46,800đ"
+                     findViewById<TextView>(R.id.tv5).text = "per ${getPeriodText(phase.billingPeriod)}"
+                 }
+             }
+         }
+
+         // Xử lý gói lifetime (one-time)
+         productDetailsMap[PRODUCT_ID_LIFETIME]?.let { lifetimePlan ->
+             binding.btnLifetime.apply {
+                 findViewById<TextView>(R.id.tv2).text = getTitleText(lifetimePlan.productId) // "VIP Lifetime"
+                 findViewById<TextView>(R.id.tv3).text = "One-time payment"
+
+                 lifetimePlan.oneTimePurchaseOfferDetails?.let { offer ->
+                     findViewById<TextView>(R.id.tv4).text = offer.formattedPrice // "7,000đ"
+                     findViewById<TextView>(R.id.tv5).text = "forever"
+                 }
+             }
+         }
+     }
+    */
+    /*================================================================================================*/
+
+    /*
+    @SuppressLint("SetTextI18n")
+    private fun setupPlanTexts() {
+        val productDetailsMap = billingManager.productDetailsMap.value
+
+
+        // 2. Xử lý gói MONTHLY
+        productDetailsMap[PRODUCT_ID_MONTH]?.let { monthlyPlan ->
+            binding.btnMonthly.apply {
+                findViewById<TextView>(R.id.tv2).text = getTitleText(monthlyPlan.productId)
+
+                // Tìm offer
+                //val matchedOffer2 = monthlyPlan.subscriptionOfferDetails?.firstOrNull()
+
+                val monthlyOffer = monthlyPlan.subscriptionOfferDetails?.let { offerList ->
+                    if (offerList.size > 1) offerList.last() else offerList.first()
+                }
+
+
+                // Cập nhật UI giá
+                monthlyOffer?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
+                    findViewById<TextView>(R.id.tv3).text = "Tôi muốn lấy giá offer"
+                     findViewById<TextView>(R.id.tv4).text = phase.formattedPrice
+                     findViewById<TextView>(R.id.tv5).text = "${getString(R.string.text_extend)} ${parsePeriodToReadableText(phase.billingPeriod)}"
+                 }
+
+                if (!purchasedProducts.value.contains(PRODUCT_ID_MONTH)) {
+                    selectPlan(binding.btnMonthly)
+                    selectedProductId = PRODUCT_ID_MONTH
+                    selectedOfferToken = monthlyOffer?.offerToken
+                    Log.d(TAG, "Monthly selected:  ${monthlyOffer?.offerId} - offerToken = $selectedOfferToken")
+                    selectedOfferToken?.let { token ->
+                        //billingManager.launchBillingFlow(monthlyPlan, token)
+                        setupBillingButton(token)
+                    }
+                }
+
+                // Gắn sự kiện click
+                setOnClickListener {
+                    // Nếu chưa mua
+                    if (!purchasedProducts.value.contains(PRODUCT_ID_MONTH)) {
+                        selectPlan(binding.btnMonthly)
+                        selectedProductId = PRODUCT_ID_MONTH
+                        selectedOfferToken = monthlyOffer?.offerToken
+                        Log.d(TAG, "Monthly selected:  ${monthlyOffer?.offerId} - offerToken = $selectedOfferToken")
+                        selectedOfferToken?.let { token ->
+                            //billingManager.launchBillingFlow(monthlyPlan, token)
+                            setupBillingButton(token)
                         }
                     }
                 }
             }
         }
-        val productDetailsMap = billingManager.productDetailsMap.value
-        val monthlyPlan = productDetailsMap[PRODUCT_ID_FREE_TRIAL]
 
+        // 3. Xử lý gói YEARLY
+        productDetailsMap[PRODUCT_ID_YEAR]?.let { yearlyPlan ->
+            binding.btnYearly.apply {
+                findViewById<TextView>(R.id.tv2).text = getTitleText(yearlyPlan.productId)
 
-        // 2. Tìm offerToken từ gói MONTHLY khớp với offerId từ FREE_TRIAL
-        val matchedOffer = monthlyPlan?.subscriptionOfferDetails?.find {
-            it.offerId == freeTrialOfferId1
-        }
-
-
-
-        offerTokenForMonthly = matchedOffer?.offerToken
-
-        Log.d(TAG, "setupPlanTexts: offerTokenForMonthly = $offerTokenForMonthly")
-
-        // 3. Update UI cho MONTHLY gói
-        productDetailsMap[PRODUCT_ID_FREE_TRIAL]?.let { monthlyPlan ->
-            binding.btnMonthly.apply {
-                findViewById<TextView>(R.id.tv2).text = getTitleText(monthlyPlan.productId)
-
-                val matchedOfferMonth = monthlyPlan.subscriptionOfferDetails?.find {
-                    it.offerId == freeTrialOfferId1
+                // Tìm offer đầu tiên hoặc offer cụ thể
+                val yearlyOffer = yearlyPlan.subscriptionOfferDetails?.let { offerList ->
+                    if (offerList.size > 1) offerList.last() else offerList.first()
                 }
 
-                // Gán offerToken nếu tìm được
-                selectedOfferToken = matchedOffer?.offerToken
-
-                matchedOfferMonth?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
+                // Cập nhật UI giá
+                yearlyOffer?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
                     findViewById<TextView>(R.id.tv4).text = phase.formattedPrice
-                    findViewById<TextView>(R.id.tv5).text = "per ${parsePeriodToReadableText(phase.billingPeriod)}"
-                } ?: run {
-                    // Fallback
-                    monthlyPlan.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { fallbackPhase ->
-                        findViewById<TextView>(R.id.tv4).text = fallbackPhase.formattedPrice
-                        findViewById<TextView>(R.id.tv5).text = "per ${getPeriodText(fallbackPhase.billingPeriod)}"
+                    findViewById<TextView>(R.id.tv5).text =
+                        "${getString(R.string.text_extend)}  ${parsePeriodToReadableText(phase.billingPeriod)}"
+                }
+
+                // Gắn sự kiện click
+                setOnClickListener {
+                    if (!purchasedProducts.value.contains(PRODUCT_ID_YEAR)) {
+                        selectPlan(binding.btnYearly)
+                        selectedProductId = PRODUCT_ID_YEAR
+                        selectedOfferToken = yearlyOffer?.offerToken
+                        Log.d(
+                            TAG,
+                            "Yearly selected: offerId = ${yearlyOffer?.offerId} - offerToken = $selectedOfferToken"
+                        )
+                        selectedOfferToken?.let { token ->
+                            //billingManager.launchBillingFlow(yearlyPlan, token)
+                            setupBillingButton(token)
+                        }
                     }
+                }
+            }
+        }
+
+        // 4. Xử lý gói LIFETIME
+        productDetailsMap[PRODUCT_ID_LIFETIME]?.let { lifetimePlan ->
+            binding.btnLifetime.apply {
+                findViewById<TextView>(R.id.tv2).text = getTitleText(lifetimePlan.productId)
+                findViewById<TextView>(R.id.tv3).text = "One-time payment"
+
+                // Lấy offer cho one-time purchase
+                val lifetimeOffer = lifetimePlan.oneTimePurchaseOfferDetails
+
+                // Cập nhật UI giá
+                lifetimeOffer?.let { offer ->
+                    findViewById<TextView>(R.id.tv4).text = offer.formattedPrice
+                    findViewById<TextView>(R.id.tv5).text = "forever"
                 }
             }
         }
     }
 
-    /*private fun setupPlanTexts(productDetailsList: List<ProductDetails>) {
-        var freeTrialOfferId1: String? = null
-        var freeTrialOfferId2: String? = null
-        var freeTrialOfferId3: String? = null
-        var offerTokenForMonthly: String? = null
+     */
 
-        // 1. Tìm offerId từ gói FREE_TRIAL
-        productDetailsList.forEach { productDetails ->
-            if (productDetails.productId == PRODUCT_ID_FREE_TRIAL) {
-                //val offer = productDetails.subscriptionOfferDetails?.getOrNull(1)
-                productDetails.subscriptionOfferDetails?.forEachIndexed { index, offer ->
-                    when (index) {
-                        0 -> {
-                            freeTrialOfferId1 = offer.offerId
-                            Log.d(TAG, "setupPlanTexts: FreeTrial offerId1 = $freeTrialOfferId1 - ${offer.offerToken}")
-                        }
-                        1 -> {
-                            freeTrialOfferId2 = offer.offerId
-                            Log.d(TAG, "setupPlanTexts: FreeTrial offerId2 = $freeTrialOfferId2 - ${offer.offerToken}")
-                        }
-                        2 -> {
-                            freeTrialOfferId3 = offer.offerId
-                            Log.d(TAG, "setupPlanTexts: FreeTrial offerId3 = $freeTrialOfferId3 - ${offer.offerToken}")
-                        }
-                    }
-                }
-                /*freeTrialOfferId = offer?.offerId
-                Log.d(TAG, "setupPlanTexts: FreeTrial offerId = $freeTrialOfferId")*/
-            }
-        }
+    @SuppressLint("SetTextI18n")
+    private fun setupPlanTexts() {
         val productDetailsMap = billingManager.productDetailsMap.value
-        val monthlyPlan = productDetailsMap[PRODUCT_ID_FREE_TRIAL]
-        val yearlyPlan = productDetailsMap[PRODUCT_ID_FREE_TRIAL]
 
-
-        // 2. Tìm offerToken từ gói MONTHLY khớp với offerId từ FREE_TRIAL
-        val matchedOffer = monthlyPlan?.subscriptionOfferDetails?.find {
-            it.offerId == freeTrialOfferId1
-        }
-
-        val matchedOffer2 = yearlyPlan?.subscriptionOfferDetails?.find {
-            it.offerId == freeTrialOfferId2
-        }
-
-
-
-        offerTokenForMonthly = matchedOffer?.offerToken
-        //val offerTokenYearly = matchedOffer2?.offerToken
-
-        Log.d(TAG, "setupPlanTexts: offerTokenForMonthly = $offerTokenForMonthly")
-
-        // 3. Update UI cho MONTHLY gói
-        productDetailsMap[PRODUCT_ID_FREE_TRIAL]?.let { monthlyPlan ->
+        // 1. Xử lý gói MONTHLY
+        productDetailsMap[PRODUCT_ID_MONTH]?.let { monthlyPlan ->
             binding.btnMonthly.apply {
                 findViewById<TextView>(R.id.tv2).text = getTitleText(monthlyPlan.productId)
 
-                val matchedOfferMonth = monthlyPlan.subscriptionOfferDetails?.find {
-                    it.offerId == freeTrialOfferId1
+                val firstOffer = monthlyPlan.subscriptionOfferDetails?.firstOrNull()
+                val lastOffer = monthlyPlan.subscriptionOfferDetails?.lastOrNull()
+
+                // Hiển thị giá ưu đãi (offer đầu tiên) vào tv3
+                firstOffer?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
+                    findViewById<TextView>(R.id.tv3).apply {
+                        text = "${phase.formattedPrice} cho 14 ngày, gia hạn sau ${parsePeriodToReadableText(phase.billingPeriod)}"
+                        visibility = View.VISIBLE
+                    }
+                } ?: run {
+                    // Nếu không có offer đầu tiên, ẩn tv3
+                    findViewById<TextView>(R.id.tv3).text = ""
+                    findViewById<TextView>(R.id.tv3).visibility = View.GONE
                 }
 
-                // Gán offerToken nếu tìm được
-                selectedOfferToken = matchedOffer?.offerToken
-
-                matchedOfferMonth?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
+                // Hiển thị giá gốc (offer cuối cùng) vào tv4
+                lastOffer?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
                     findViewById<TextView>(R.id.tv4).text = phase.formattedPrice
-                    findViewById<TextView>(R.id.tv5).text = "per ${parsePeriodToReadableText(phase.billingPeriod)}"
-                } ?: run {
-                    // Fallback
-                    monthlyPlan.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { fallbackPhase ->
-                        findViewById<TextView>(R.id.tv4).text = fallbackPhase.formattedPrice
-                        findViewById<TextView>(R.id.tv5).text = "per ${getPeriodText(fallbackPhase.billingPeriod)}"
+                    findViewById<TextView>(R.id.tv5).text = parsePeriodToReadableText(phase.billingPeriod)
+                }
+
+                if (!purchasedProducts.value.contains(PRODUCT_ID_MONTH)) {
+                    selectPlan(binding.btnMonthly)
+                    selectedProductId = PRODUCT_ID_MONTH
+                    selectedOfferToken = firstOffer?.offerToken
+                    Log.d(TAG, "Monthly selected: offerId = ${firstOffer?.offerId} - offerToken = $selectedOfferToken")
+                    selectedOfferToken?.let { token ->
+                        setupBillingButton(token)
+                    } ?: setupBillingButton("")
+                }
+
+                // Gắn sự kiện click
+                setOnClickListener {
+                    if (!purchasedProducts.value.contains(PRODUCT_ID_MONTH)) {
+                        selectPlan(binding.btnMonthly)
+                        selectedProductId = PRODUCT_ID_MONTH
+                        selectedOfferToken = firstOffer?.offerToken
+                        Log.d(TAG, "Monthly selected: offerId = ${firstOffer?.offerId} - offerToken = $selectedOfferToken")
+                        selectedOfferToken?.let { token ->
+                            setupBillingButton(token)
+                        } ?: setupBillingButton("")
                     }
                 }
             }
         }
-        productDetailsMap[PRODUCT_ID_FREE_TRIAL]?.let { monthlyPlan ->
+
+        // 2. Xử lý gói YEARLY
+        productDetailsMap[PRODUCT_ID_YEAR]?.let { yearlyPlan ->
             binding.btnYearly.apply {
-                findViewById<TextView>(R.id.tv2).text = getTitleText(monthlyPlan.productId)
+                findViewById<TextView>(R.id.tv2).text = getTitleText(yearlyPlan.productId)
 
-                val matchedOfferMonth = monthlyPlan.subscriptionOfferDetails?.find {
-                    it.offerId == freeTrialOfferId2
+                val firstOffer = yearlyPlan.subscriptionOfferDetails?.firstOrNull()
+                val lastOffer = yearlyPlan.subscriptionOfferDetails?.lastOrNull()
+
+                // Hiển thị giá ưu đãi (offer đầu tiên) vào tv3
+                firstOffer?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
+                    findViewById<TextView>(R.id.tv3).apply {
+                        text = "${phase.formattedPrice} cho 1 năm, gia hạn sau ${parsePeriodToReadableText(phase.billingPeriod)}"
+                        visibility = View.VISIBLE
+                    }
+                } ?: run {
+                    // Nếu không có offer đầu tiên, ẩn tv3
+                    findViewById<TextView>(R.id.tv3).text = ""
+                    findViewById<TextView>(R.id.tv3).visibility = View.GONE
                 }
 
-                // Gán offerToken nếu tìm được
-                selectedOfferToken = matchedOffer2?.offerToken
-
-                matchedOfferMonth?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
+                // Hiển thị giá gốc (offer cuối cùng) vào tv4
+                lastOffer?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
                     findViewById<TextView>(R.id.tv4).text = phase.formattedPrice
-                    findViewById<TextView>(R.id.tv5).text = "per ${parsePeriodToReadableText(phase.billingPeriod)}"
-                } ?: run {
-                    // Fallback
-                    monthlyPlan.subscriptionOfferDetails?.firstOrNull()?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { fallbackPhase ->
-                        findViewById<TextView>(R.id.tv4).text = fallbackPhase.formattedPrice
-                        findViewById<TextView>(R.id.tv5).text = "per ${getPeriodText(fallbackPhase.billingPeriod)}"
+                    findViewById<TextView>(R.id.tv5).text = parsePeriodToReadableText(phase.billingPeriod)
+                }
+
+                setOnClickListener {
+                    if (!purchasedProducts.value.contains(PRODUCT_ID_YEAR)) {
+                        selectPlan(binding.btnYearly)
+                        selectedProductId = PRODUCT_ID_YEAR
+                        selectedOfferToken = firstOffer?.offerToken
+                        selectedOfferToken?.let { token ->
+                            setupBillingButton(token)
+                        } ?: setupBillingButton("")
                     }
                 }
             }
         }
 
-    }*/
-
-    // Hàm helper để chuyển billingPeriod thành text dễ đọc
-    private fun getPeriodText(billingPeriod: String): String {
-        return when {
-            billingPeriod.contains("P1M") -> "month"
-            billingPeriod.contains("P1Y") -> "year"
-            billingPeriod.contains("P1W") -> "week"
-            billingPeriod.contains("P6M") -> "6 months"
-            else -> billingPeriod
+        // 3. Xử lý gói LIFETIME
+        productDetailsMap[PRODUCT_ID_LIFETIME]?.let { lifetimePlan ->
+            binding.btnLifetime.apply {
+                findViewById<TextView>(R.id.tv2).text = getTitleText(lifetimePlan.productId)
+                findViewById<TextView>(R.id.tv3).text = "One-time payment"
+                val lifetimeOffer = lifetimePlan.oneTimePurchaseOfferDetails
+                lifetimeOffer?.let { offer ->
+                    findViewById<TextView>(R.id.tv4).text = offer.formattedPrice
+                    findViewById<TextView>(R.id.tv5).text = "forever"
+                }
+            }
         }
     }
 
     private fun getTitleText(billingTitle: String): String {
         return when {
-            billingTitle.contains(PRODUCT_ID_MONTH, ignoreCase = true) -> "Vip Month"
-            billingTitle.contains(PRODUCT_ID_YEAR, ignoreCase = true) -> "Vip Year"
-            billingTitle.contains(PRODUCT_ID_LIFETIME, ignoreCase = true) -> "Vip Lifetime"
+            billingTitle.contains(PRODUCT_ID_MONTH, ignoreCase = true) -> getString(R.string.sub_week)
+            billingTitle.contains(PRODUCT_ID_YEAR, ignoreCase = true) -> getString(R.string.sub_year)
+            billingTitle.contains(PRODUCT_ID_LIFETIME, ignoreCase = true) -> getString(R.string.in_app)
             billingTitle.contains(PRODUCT_ID_FREE_TRIAL, ignoreCase = true) -> "Free Trial"
             else -> billingTitle
         }
     }
+
     private fun parsePeriodToReadableText(period: String): String {
         return when {
-            period.contains("D") -> "${period.filter { it.isDigit() }} ngày"
-            period.contains("W") -> "${period.filter { it.isDigit() }} tuần"
-            period.contains("M") -> "${period.filter { it.isDigit() }} tháng"
-            period.contains("Y") -> "${period.filter { it.isDigit() }} năm"
+            period.contains("D") -> "${period.filter { it.isDigit() }} ${getString(R.string.text_day)}"
+            period.contains("W") -> "${period.filter { it.isDigit() }} ${getString(R.string.text_week)}"
+            period.contains("M") -> "${period.filter { it.isDigit() }} ${getString(R.string.text_month)}"
+            period.contains("Y") -> "${period.filter { it.isDigit() }} ${getString(R.string.text_year)}"
             else -> "Không rõ"
         }
     }
+
     private fun parsePeriodToDays(period: String): Int {
         return when {
             period.contains("D") -> period.filter { it.isDigit() }.toIntOrNull() ?: 0
@@ -722,7 +951,9 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
         val purchasedProduct = purchase.products.firstOrNull()
         purchasedProduct?.let { productId ->
             uiScope.launch(Dispatchers.IO) {
-                val currentProducts = prefs.getStringSet(PURCHASED_PRODUCTS_KEY, emptySet())?.toMutableSet() ?: mutableSetOf()
+                val currentProducts =
+                    prefs.getStringSet(PURCHASED_PRODUCTS_KEY, emptySet())?.toMutableSet()
+                        ?: mutableSetOf()
                 currentProducts.add(productId)
                 prefs.edit().putStringSet(PURCHASED_PRODUCTS_KEY, currentProducts).apply()
                 withContext(Dispatchers.Main) {
@@ -738,7 +969,7 @@ class PaywallActivity : AppCompatActivity(), BillingListener {
             }
             if (productId == PRODUCT_ID_MONTH) {
                 binding.bestDeal.apply {
-                    text = "Purchased"
+                    text = "Đã mua"
                     setBackgroundResource(R.drawable.bg_disable)
                 }
             }
