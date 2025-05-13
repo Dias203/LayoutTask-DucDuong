@@ -25,13 +25,8 @@ class BillingManager(
 
     internal val billingClient by lazy { createBillingClient() }
 
-
     // Thêm TrialEligibilityChecker
     lateinit var trialEligibilityChecker: TrialEligibilityChecker
-
-    /*// StateFlow để theo dõi trạng thái đủ điều kiện dùng thử
-    val trialEligibilityMap: StateFlow<Map<String, Boolean>>
-        get() = trialEligibilityChecker.trialEligibilityMap*/
 
     init {
         initTrialEligibilityChecker()
@@ -63,7 +58,6 @@ class BillingManager(
                             // Gọi refreshTrialEligibility sau khi đã có cả thông tin sản phẩm và giao dịch mua
                             refreshTrialEligibility()
                         }
-
                         else -> Log.e(
                             TAG,
                             "Billing connection error: ${billingResult.responseCode}"
@@ -139,12 +133,17 @@ class BillingManager(
 
     // region Billing Flow
     fun launchBillingFlow(productDetails: ProductDetails, offerToken: String? = null) {
+
+        Log.d(TAG, "Launching billing flow for product: ${productDetails.productId}, type: ${productDetails.productType}, offerToken: $offerToken")
+
         val paramsDetailBuilder = BillingFlowParams.ProductDetailsParams.newBuilder()
             .setProductDetails(productDetails)
 
-        offerToken?.let {
-            paramsDetailBuilder.setOfferToken(it).build()
+        // Chỉ thiết lập offerToken cho sản phẩm subscription
+        if (productDetails.productType == BillingClient.ProductType.SUBS && !offerToken.isNullOrEmpty()) {
+            paramsDetailBuilder.setOfferToken(offerToken)
         }
+
 
         val paramsDetail = paramsDetailBuilder.build()
         val billingFlowParams = BillingFlowParams.newBuilder()
@@ -152,6 +151,7 @@ class BillingManager(
             .build()
 
         billingClient.launchBillingFlow(activity, billingFlowParams)
+
     }
 
     // Quy trình cấp gói
@@ -189,7 +189,6 @@ class BillingManager(
 
         billingClient.launchBillingFlow(activity, billingFlowParams)
     }
-
 
     // Quy trình hạ cấp gói
     fun launchBillingFlowForDowngrade(productDetails: ProductDetails, oldProductId: String) {
@@ -305,7 +304,6 @@ class BillingManager(
         }
     }
 
-
     // Tiêu thụ giao dịch (dùng cho sản phẩm in-app tiêu thụ được).
     private fun consumePurchase(purchase: Purchase) {
         val consumeParams = ConsumeParams.newBuilder()
@@ -320,6 +318,20 @@ class BillingManager(
             }
         }
     }
+
+    fun endConnection() {
+        if (billingClient.isReady) {
+            billingClient.endConnection()
+            Log.d(TAG, "Billing connection closed")
+        }
+    }
+
+    fun checkVersion() {
+        val result = billingClient.isFeatureSupported(BillingClient.FeatureType.PRODUCT_DETAILS)
+        if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+            // Thiết bị hỗ trợ ProductDetails
+        } else {
+            // Thiết bị không hỗ trợ, fallback sang SkuDetails (nếu bạn dùng version thấp hơn 5)
+        }
+    }
 }
-
-

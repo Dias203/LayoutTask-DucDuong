@@ -6,10 +6,8 @@ import android.util.Log
 import android.widget.Toast
 import com.android.billingclient.api.*
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 
-private const val TAG = "BillingManager"
+private const val TAG = "OldBillingManager"
 
 class OldBillingManager(
     private val activity: Activity,
@@ -28,10 +26,6 @@ class OldBillingManager(
 
     // Thêm TrialEligibilityChecker
     lateinit var trialEligibilityChecker: TrialEligibilityChecker
-
-    /*// StateFlow để theo dõi trạng thái đủ điều kiện dùng thử
-    val trialEligibilityMap: StateFlow<Map<String, Boolean>>
-        get() = trialEligibilityChecker.trialEligibilityMap*/
 
     init {
         initTrialEligibilityChecker()
@@ -89,8 +83,8 @@ class OldBillingManager(
     // region Purchases
     // Truy vấn tất cả giao dịch của người dùng (cho cả sản phẩm in-app và subscriptions)
     private fun queryUserPurchases() {
-        queryPurchases(BillingClient.ProductType.SUBS)
-        queryPurchases(BillingClient.ProductType.INAPP)
+        queryPurchases(BillingClient.SkuType.SUBS)
+        queryPurchases(BillingClient.SkuType.INAPP)
     }
 
     // Truy vấn giao dịch theo loại sản phẩm
@@ -102,7 +96,7 @@ class OldBillingManager(
         ) { billingResult, purchasesList ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                 handleAllPurchases(purchasesList)
-                if (productType == BillingClient.ProductType.INAPP) {
+                if (productType == BillingClient.SkuType.INAPP) {
                     purchasesList.forEach { purchase ->
                         if (purchase.products.contains(PRODUCT_ID_LIFETIME)) {
                             Log.d("Cancel Lifetime", "Cancel Lifetime")
@@ -140,7 +134,7 @@ class OldBillingManager(
     // region Billing Flow
     fun launchBillingFlow(skuDetails: SkuDetails) {
         // Kiểm tra trạng thái BillingClient
-        if (!billingClient.isReady()) {
+        if (!billingClient.isReady) {
             Log.e(TAG, "BillingClient is not ready")
             Toast.makeText(context, "Dịch vụ thanh toán không sẵn sàng", Toast.LENGTH_SHORT).show()
             return

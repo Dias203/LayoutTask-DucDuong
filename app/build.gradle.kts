@@ -62,5 +62,4 @@ dependencies {
     implementation(libs.billing.ktx.v610)
     implementation (libs.gson)
     implementation (libs.threetenabp)
-    implementation("com.android.billingclient:billing:4.0.0")
 }

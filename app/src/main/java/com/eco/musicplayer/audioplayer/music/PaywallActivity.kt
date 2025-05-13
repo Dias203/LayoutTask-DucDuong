@@ -495,4 +495,9 @@ class PaywallActivity : AppCompatActivity() {
         setBackgroundResource(R.drawable.bg_disable)
         alpha = 0.8f
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        viewModel.endBilling()
+    }
 }
