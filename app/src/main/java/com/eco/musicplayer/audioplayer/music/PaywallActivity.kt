@@ -52,10 +52,9 @@ class PaywallActivity : AppCompatActivity() {
         lifecycleScope.launch {
             viewModel.uiState.collect { state ->
                 when (state) {
-                    is PaywallUiState.Loading -> showLoading()
-                    is PaywallUiState.Loaded -> hideLoading()
                     is PaywallUiState.PurchaseSuccess -> handlePurchaseSuccess(state.productId)
                     is PaywallUiState.Error -> showError(state.message)
+                    else -> {}
                 }
             }
         }
@@ -78,14 +77,6 @@ class PaywallActivity : AppCompatActivity() {
                 updatePlanSelectionBasedOnPurchases(products)
             }
         }
-    }
-
-    private fun showLoading() {
-        binding.progressBar.visibility = View.VISIBLE
-    }
-
-    private fun hideLoading() {
-        binding.progressBar.visibility = View.GONE
     }
 
     private fun showError(message: String) {

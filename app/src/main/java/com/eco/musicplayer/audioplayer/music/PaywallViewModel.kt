@@ -43,8 +43,8 @@ class PaywallViewModel(
 
     private val _selectedOfferToken = MutableStateFlow<String?>(null)
 
-    private val _uiState = MutableStateFlow<PaywallUiState>(PaywallUiState.Loading)
-    val uiState: StateFlow<PaywallUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow<PaywallUiState?>(null)
+    val uiState: StateFlow<PaywallUiState?> = _uiState.asStateFlow()
 
     init {
         loadInitialData()
@@ -69,7 +69,6 @@ class PaywallViewModel(
             val savedProducts =
                 sharedPreferences.getStringSet(PURCHASED_PRODUCTS_KEY, emptySet()) ?: emptySet()
             _purchasedProducts.value = savedProducts
-            _uiState.value = PaywallUiState.Loaded
         }
     }
 
@@ -77,7 +76,6 @@ class PaywallViewModel(
         viewModelScope.launch {
             billingManager.productDetailsMap.collect { map ->
                 _productDetailsMap.value = map
-                _uiState.value = PaywallUiState.Loaded
             }
         }
     }
@@ -89,7 +87,7 @@ class PaywallViewModel(
             val offerToken = if (productDetails?.productType == BillingClient.ProductType.SUBS) {
                 productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
             } else {
-                "" // Không dùng offerToken cho in-app
+                null // Không dùng offerToken cho in-app
             }
             _selectedOfferToken.value = offerToken
             Log.d(
