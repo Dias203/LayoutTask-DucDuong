@@ -78,13 +78,6 @@ class PaywallActivity : AppCompatActivity() {
                 updatePlanSelectionBasedOnPurchases(products)
             }
         }
-
-        // Quan sát selectedOfferToken để bật/tắt btnStartFreeTrial
-        lifecycleScope.launch {
-            viewModel.selectedOfferToken.collect { offerToken ->
-                binding.btnStartFreeTrial.isEnabled = !offerToken.isNullOrEmpty()
-            }
-        }
     }
 
     private fun showLoading() {

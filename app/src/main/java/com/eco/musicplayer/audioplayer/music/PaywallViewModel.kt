@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
+import com.eco.musicplayer.audioplayer.music.PaywallViewModel.Companion.PURCHASED_PRODUCTS_KEY
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -41,7 +42,6 @@ class PaywallViewModel(
     val selectedProductId: StateFlow<String?> = _selectedProductId.asStateFlow()
 
     private val _selectedOfferToken = MutableStateFlow<String?>(null)
-    val selectedOfferToken: StateFlow<String?> = _selectedOfferToken.asStateFlow()
 
     private val _uiState = MutableStateFlow<PaywallUiState>(PaywallUiState.Loading)
     val uiState: StateFlow<PaywallUiState> = _uiState.asStateFlow()
@@ -54,7 +54,6 @@ class PaywallViewModel(
     private fun loadInitialData() {
         viewModelScope.launch {
             loadPurchasedProductsFromPrefs()
-            billingManager.setupBillingConnection()
             // Chờ productDetailsMap có dữ liệu
             billingManager.productDetailsMap.collect { map ->
                 if (map.isNotEmpty() && _selectedProductId.value == null && _purchasedProducts.value.isEmpty()) {
@@ -67,7 +66,8 @@ class PaywallViewModel(
 
     private suspend fun loadPurchasedProductsFromPrefs() {
         withContext(Dispatchers.IO) {
-            val savedProducts = sharedPreferences.getStringSet(PURCHASED_PRODUCTS_KEY, emptySet()) ?: emptySet()
+            val savedProducts =
+                sharedPreferences.getStringSet(PURCHASED_PRODUCTS_KEY, emptySet()) ?: emptySet()
             _purchasedProducts.value = savedProducts
             _uiState.value = PaywallUiState.Loaded
         }
@@ -89,14 +89,18 @@ class PaywallViewModel(
             val offerToken = if (productDetails?.productType == BillingClient.ProductType.SUBS) {
                 productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
             } else {
-                null // Không dùng offerToken cho in-app
+                "" // Không dùng offerToken cho in-app
             }
             _selectedOfferToken.value = offerToken
-            Log.d(TAG, "Selected plan: $productId, productType: ${productDetails?.productType}, offerToken: $offerToken")
+            Log.d(
+                TAG,
+                "Selected plan: $productId, productType: ${productDetails?.productType}, offerToken: $offerToken"
+            )
         }
     }
 
-    /*fun purchaseSelectedProduct() {
+    fun purchaseSelectedProduct() {
+        Log.e(TAG, "1")
         val productId = _selectedProductId.value ?: run {
             _uiState.value = PaywallUiState.Error("No product selected")
             Log.e(TAG, "No product selected")
@@ -109,7 +113,7 @@ class PaywallViewModel(
         }
         val offerToken = _selectedOfferToken.value
 
-        Log.d(TAG, "Attempting to purchase product: $productId, offerToken: $offerToken")
+        Log.e(TAG, "Attempting to purchase product: $productId, offerToken: $offerToken")
 
         viewModelScope.launch {
             val currentSubscription = _purchasedProducts.value.firstOrNull {
@@ -143,7 +147,8 @@ class PaywallViewModel(
             }
         }
     }
-*/
+
+    /*
 
     fun purchaseSelectedProduct() {
         val productId = _selectedProductId.value ?: run {
@@ -168,38 +173,47 @@ class PaywallViewModel(
 
         Log.d(TAG, "Attempting to purchase product: $productId, offerToken: $offerToken")
 
-        viewModelScope.launch {
-            val currentSubscription = _purchasedProducts.value.firstOrNull {
-                it in ConstantsProductID.subsListProduct
+
+        val currentSubscription = _purchasedProducts.value.firstOrNull {
+            it in ConstantsProductID.subsListProduct
+        }
+
+        when {
+            productId == PRODUCT_ID_LIFETIME -> {
+                Log.d(TAG, "Launching billing flow for LIFETIME")
+                billingManager.launchBillingFlow(productDetails = productDetails)
             }
 
-            when {
-                productId == PRODUCT_ID_LIFETIME -> {
-                    Log.d(TAG, "Launching billing flow for LIFETIME")
-                    billingManager.launchBillingFlow(productDetails = productDetails)
-                }
-                currentSubscription != null && productId in ConstantsProductID.subsListProduct -> {
-                    if (isUpgradeAllowed(currentSubscription, productId)) {
-                        Log.d(TAG, "Launching billing flow for upgrade from $currentSubscription to $productId")
-                        billingManager.launchBillingFlowForUpgrade(
-                            productDetails = productDetails,
-                            oldProductId = currentSubscription
-                        )
-                    } else {
-                        _uiState.value = PaywallUiState.Error("Bạn chỉ có thể nâng cấp lên gói cao hơn!")
-                        Log.w(TAG, "Upgrade not allowed: $currentSubscription to $productId")
-                    }
-                }
-                else -> {
-                    Log.d(TAG, "Launching billing flow for subscription")
-                    billingManager.launchBillingFlow(
-                        productDetails = productDetails,
-                        offerToken = offerToken
+            currentSubscription != null && productId in ConstantsProductID.subsListProduct -> {
+                if (isUpgradeAllowed(currentSubscription, productId)) {
+                    Log.d(
+                        TAG,
+                        "Launching billing flow for upgrade from $currentSubscription to $productId"
                     )
+                    billingManager.launchBillingFlowForUpgrade(
+                        productDetails = productDetails,
+                        oldProductId = currentSubscription
+                    )
+                } else {
+                    _uiState.value =
+                        PaywallUiState.Error("Bạn chỉ có thể nâng cấp lên gói cao hơn!")
+                    Log.w(TAG, "Upgrade not allowed: $currentSubscription to $productId")
                 }
             }
+
+            else -> {
+                Log.d(TAG, "Launching billing flow for subscription")
+                billingManager.launchBillingFlow(
+                    productDetails = productDetails,
+                    offerToken = offerToken
+                )
+            }
+
         }
     }
+
+     */
+
     private fun isUpgradeAllowed(currentProductId: String, newProductId: String): Boolean {
         return getSubscriptionLevel(newProductId) > getSubscriptionLevel(currentProductId)
     }
@@ -213,10 +227,13 @@ class PaywallViewModel(
         }
     }
 
+
     override fun onPurchaseSuccess(purchase: Purchase) {
         viewModelScope.launch {
             val productId = purchase.products.firstOrNull() ?: return@launch
-            val currentProducts = sharedPreferences.getStringSet(PURCHASED_PRODUCTS_KEY, emptySet())?.toMutableSet() ?: mutableSetOf()
+            val currentProducts =
+                sharedPreferences.getStringSet(PURCHASED_PRODUCTS_KEY, emptySet())?.toMutableSet()
+                    ?: mutableSetOf()
 
             currentProducts.add(productId)
             sharedPreferences.edit().putStringSet(PURCHASED_PRODUCTS_KEY, currentProducts).apply()
@@ -237,7 +254,7 @@ class PaywallViewModel(
         Log.d(TAG, "Purchase cancelled")
     }
 
-    fun endBilling(){
+    fun endBilling() {
         billingManager.endConnection()
     }
 }
