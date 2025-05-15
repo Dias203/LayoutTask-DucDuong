@@ -154,14 +154,6 @@ class TrialEligibilityChecker(private val billingClient: BillingClient) {
         // Kiểm tra trong các đăng ký hiện tại
         val purchase = activePurchases.find { it.products.contains(productId) } ?: return false
 
-        // Kiểm tra thông tin đăng ký xem có đang trong giai đoạn thử hay không
-        // Thường thì Google Play không cung cấp trực tiếp thông tin này trong Purchase object
-        // Bạn có thể cần phải kiểm tra từ backend server của mình nếu có lưu trữ thông tin này
-
-        // Đây là một cách tiếp cận đơn giản dựa trên thời gian đăng ký
-        // Nếu đăng ký mới được thực hiện (ví dụ: trong vòng 1 ngày) và có giá trị trial
-        // thì có khả năng cao là đang trong giai đoạn thử
-
         val currentTimeMillis = System.currentTimeMillis()
         val purchaseTimeMillis = purchase.purchaseTime
         val isRecentPurchase = (currentTimeMillis - purchaseTimeMillis) < (24 * 60 * 60 * 1000) // 1 ngày
@@ -241,13 +233,9 @@ class TrialEligibilityChecker(private val billingClient: BillingClient) {
 
         // Đăng ký lắng nghe thay đổi từ BillingManager
         fun listenToProductDetails(productDetailsMap: StateFlow<Map<String, ProductDetails>>) {
-            // Trong thực tế, bạn sẽ sử dụng coroutines hoặc RxJava để collect StateFlow này
-            // Đây chỉ là ví dụ đơn giản cho việc cập nhật giá trị
             _productDetailsMap.value = productDetailsMap.value
         }
         fun listenToSkuDetails(skuDetailsMap: StateFlow<Map<String, SkuDetails>>) {
-            // Trong thực tế, bạn sẽ sử dụng coroutines hoặc RxJava để collect StateFlow này
-            // Đây chỉ là ví dụ đơn giản cho việc cập nhật giá trị
             _skuDetailsMap.value = skuDetailsMap.value
         }
     }

@@ -27,12 +27,13 @@ val allProductDetails = mutableListOf<ProductDetails>()
 fun BillingManager.queryAllProductDetails() {
     // Lọc ra các sản phẩm đăng ký và mua một lần cần truy vấn
 
-    var subsQueryCompleted = ConstantsProductID.subsListProduct.isEmpty()
-    var inAppQueryCompleted = ConstantsProductID.inAppListProduct.isEmpty()
+    var subsQueryCompleted = ConstantsProductID.subsListProduct.isEmpty() // -> false
+    var inAppQueryCompleted = ConstantsProductID.inAppListProduct.isEmpty() // -> false
 
     // Hàm kiểm tra cả hai truy vấn hoàn thành để xử lý tiếp
     fun checkAndProcess() {
         if (subsQueryCompleted && inAppQueryCompleted) {
+            Log.d(TAG, "checkAndProcess: 1")
             processAllProductDetails(allProductDetails)
         }
     }
@@ -45,6 +46,7 @@ fun BillingManager.queryAllProductDetails() {
             onComplete = { products ->
                 allProductDetails.addAll(products)
                 subsQueryCompleted = true
+                Log.d(TAG, "queryAllProductDetails: 2")
                 checkAndProcess()
             }
         )

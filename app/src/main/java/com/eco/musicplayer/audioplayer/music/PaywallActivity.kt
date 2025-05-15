@@ -283,7 +283,7 @@ class PaywallActivity : AppCompatActivity() {
                         PRODUCT_ID_YEAR -> {
                             binding.bestDeal2.apply {
                                 visibility = View.VISIBLE
-                                text = "Purchased"
+                                text = "Đã mua"
                                 setBackgroundResource(R.drawable.bg_disable)
                             }
                         }
@@ -291,7 +291,7 @@ class PaywallActivity : AppCompatActivity() {
                         else -> {
                             binding.bestDeal3.apply {
                                 visibility = View.VISIBLE
-                                text = "Purchased"
+                                text = "Đã mua"
                                 setBackgroundResource(R.drawable.bg_disable)
                             }
                         }

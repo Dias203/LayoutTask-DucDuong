@@ -216,7 +216,7 @@ class BillingManager(
         val subscriptionUpdateParams = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
             .setOldPurchaseToken(oldPurchaseToken)
             .setSubscriptionReplacementMode(
-                BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.WITH_TIME_PRORATION
+                BillingFlowParams.SubscriptionUpdateParams.ReplacementMode.DEFERRED
             )
             .build()
 
