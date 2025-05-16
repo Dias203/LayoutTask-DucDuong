@@ -15,21 +15,18 @@ class BillingManager(
     private val activity: Activity,
     application: Application,
     private val billingListener: BillingListener
-) : PurchasesUpdatedListener {
+) : BillingManagerInterface, PurchasesUpdatedListener {
 
     private val context = application.applicationContext
-
-    // State flows
     private val _purchasedProductIds = MutableStateFlow<Set<String>>(emptySet())
     private val _purchases = MutableStateFlow<List<Purchase>>(emptyList())
+    // State flows
+    override val productDetailsMap: StateFlow<Map<String, Any>>
+        get() = _productDetailsMap.asStateFlow()
 
     internal val billingClient by lazy { createBillingClient() }
 
-    // Thêm TrialEligibilityChecker
-    lateinit var trialEligibilityChecker: TrialEligibilityChecker
-
     init {
-        initTrialEligibilityChecker()
         setupBillingConnection()
     }
 
@@ -46,7 +43,7 @@ class BillingManager(
             .build()
     }
 
-    fun setupBillingConnection() {
+    override fun setupBillingConnection() {
         if (!billingClient.isReady) {
             billingClient.startConnection(object : BillingClientStateListener {
                 override fun onBillingSetupFinished(billingResult: BillingResult) {
@@ -55,8 +52,6 @@ class BillingManager(
                             Log.d(TAG, "Billing connection success")
                             queryAllProductDetails() // Gọi extension function
                             queryUserPurchases()
-                            // Gọi refreshTrialEligibility sau khi đã có cả thông tin sản phẩm và giao dịch mua
-                            refreshTrialEligibility()
                         }
                         else -> Log.e(
                             TAG,
@@ -96,6 +91,7 @@ class BillingManager(
         ) { billingResult, purchasesList ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                 handleAllPurchases(purchasesList)
+                Log.d("DUC", "queryPurchases:111 ")
                 if (productType == BillingClient.ProductType.INAPP) {
                     purchasesList.forEach { purchase ->
                         if (purchase.products.contains(PRODUCT_ID_LIFETIME)) {
@@ -132,30 +128,60 @@ class BillingManager(
     // endregion
 
     // region Billing Flow
-    fun launchBillingFlow(productDetails: ProductDetails, offerToken: String? = null) {
-
-        Log.d(TAG, "Launching billing flow for product: ${productDetails.productId}, type: ${productDetails.productType}, offerToken: $offerToken")
-
+    override fun launchBillingFlow(productDetails: Any, offerToken: String?) {
+        if (productDetails !is ProductDetails) {
+            Log.e(TAG, "Invalid productDetails type: ${productDetails.javaClass}")
+            billingListener.onPurchaseError(
+                BillingClient.BillingResponseCode.DEVELOPER_ERROR,
+                "Invalid productDetails type"
+            )
+            return
+        }
+        Log.d(TAG, "Launching billing flow for product: ${productDetails.productId}")
         val paramsDetailBuilder = BillingFlowParams.ProductDetailsParams.newBuilder()
             .setProductDetails(productDetails)
 
-        // Chỉ thiết lập offerToken cho sản phẩm subscription
-        if (productDetails.productType == BillingClient.ProductType.SUBS && !offerToken.isNullOrEmpty()) {
-            paramsDetailBuilder.setOfferToken(offerToken)
+        if (productDetails.productType == BillingClient.ProductType.SUBS) {
+            val subscriptionOffer = productDetails.subscriptionOfferDetails?.firstOrNull()
+            if (subscriptionOffer == null) {
+                Log.e(TAG, "No subscription offer details available for ${productDetails.productId}")
+                billingListener.onPurchaseError(
+                    BillingClient.BillingResponseCode.ITEM_UNAVAILABLE,
+                    "No subscription offer available"
+                )
+                return
+            }
+            val selectedOfferToken = subscriptionOffer.offerToken
+            if (selectedOfferToken.isEmpty()) {
+                Log.e(TAG, "Invalid offerToken for subscription: ${productDetails.productId}")
+                billingListener.onPurchaseError(
+                    BillingClient.BillingResponseCode.DEVELOPER_ERROR,
+                    "Invalid offerToken"
+                )
+                return
+            }
+            paramsDetailBuilder.setOfferToken(selectedOfferToken)
         }
-
 
         val paramsDetail = paramsDetailBuilder.build()
         val billingFlowParams = BillingFlowParams.newBuilder()
             .setProductDetailsParamsList(listOf(paramsDetail))
             .build()
 
-        billingClient.launchBillingFlow(activity, billingFlowParams)
-
+        val result = billingClient.launchBillingFlow(activity, billingFlowParams)
+        if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+            Log.e(TAG, "Failed to launch billing flow: ${result.debugMessage}")
+            billingListener.onPurchaseError(result.responseCode, result.debugMessage)
+        }
     }
 
     // Quy trình cấp gói
-    fun launchBillingFlowForUpgrade(productDetails: ProductDetails, oldProductId: String) {
+    override fun launchBillingFlowForUpgrade(productDetails: Any, oldProductId: String) {
+        if (productDetails !is ProductDetails) {
+            Log.e(TAG, "Invalid productDetails type: ${productDetails.javaClass}")
+            return
+        }
+        // Logic hiện tại của launchBillingFlowForUpgrade
         val oldPurchaseToken = getOldPurchaseToken(oldProductId) ?: run {
             Log.e(TAG, "No valid purchase token found for $oldProductId")
             Toast.makeText(context, "Không tìm thấy giao dịch trước đó", Toast.LENGTH_SHORT).show()
@@ -240,14 +266,9 @@ class BillingManager(
                         if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
                             if (!purchase.isAcknowledged) {
                                 acknowledgePurchase(purchase)
-                                refreshTrialEligibility()
+                                billingListener.onPurchaseSuccess(purchase)
                             }
                         }
-                        // Cập nhật trạng thái đủ điều kiện dùng thử
-                        if (this::trialEligibilityChecker.isInitialized) {
-                            trialEligibilityChecker.updateAfterPurchase(purchase)
-                        }
-                        billingListener.onPurchaseSuccess(purchase)
                     }
                 }
             }
@@ -274,35 +295,6 @@ class BillingManager(
     }
     // endregion
 
-    // Khởi tạo trong constructor hoặc một phương thức init
-    private fun initTrialEligibilityChecker() {
-        trialEligibilityChecker = TrialEligibilityChecker(billingClient)
-
-        // Liên kết với productDetailsMap
-        TrialEligibilityChecker.listenToProductDetails(productDetailsMap)
-    }
-
-    // Làm mới trạng thái đủ điều kiện dùng thử
-    fun refreshTrialEligibility() {
-        if (this::trialEligibilityChecker.isInitialized) {
-            trialEligibilityChecker.refreshTrialEligibility(_productDetailsMap.value)
-        }
-    }
-
-    // Kiểm tra nhanh xem người dùng có đủ điều kiện dùng thử một sản phẩm không
-    fun isEligibleForTrial(productId: String): Boolean {
-        return if (this::trialEligibilityChecker.isInitialized) {
-            trialEligibilityChecker.isEligibleForTrial(productId)
-        } else false
-    }
-
-    fun getTrialTimeInfo(productId: String): TrialTimeInfo {
-        return if (this::trialEligibilityChecker.isInitialized) {
-            trialEligibilityChecker.getTrialTimeInfo(productId)
-        } else {
-            TrialTimeInfo(false, 0, 0)
-        }
-    }
 
     // Tiêu thụ giao dịch (dùng cho sản phẩm in-app tiêu thụ được).
     private fun consumePurchase(purchase: Purchase) {
@@ -319,7 +311,7 @@ class BillingManager(
         }
     }
 
-    fun endConnection() {
+    override fun endConnection() {
         if (billingClient.isReady) {
             billingClient.endConnection()
             Log.d(TAG, "Billing connection closed")

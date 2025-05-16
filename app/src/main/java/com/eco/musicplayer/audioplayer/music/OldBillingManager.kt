@@ -6,6 +6,8 @@ import android.util.Log
 import android.widget.Toast
 import com.android.billingclient.api.*
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 private const val TAG = "OldBillingManager"
 
@@ -13,22 +15,18 @@ class OldBillingManager(
     private val activity: Activity,
     application: Application,
     private val billingListener: BillingListener
-) : PurchasesUpdatedListener {
-
-    private val context = application.applicationContext
-
-    // State flows
+) : BillingManagerInterface, PurchasesUpdatedListener {
+    // Triển khai các phương thức của BillingManagerInterface
+    override val productDetailsMap: StateFlow<Map<String, Any>>
+        get() = _skuDetailsMap.asStateFlow()
     private val _purchasedProductIds = MutableStateFlow<Set<String>>(emptySet())
     private val _purchases = MutableStateFlow<List<Purchase>>(emptyList())
+    private val context = application.applicationContext
 
     internal val billingClient by lazy { createBillingClient() }
 
 
-    // Thêm TrialEligibilityChecker
-    lateinit var trialEligibilityChecker: TrialEligibilityChecker
-
     init {
-        initTrialEligibilityChecker()
         setupBillingConnection()
     }
 
@@ -45,23 +43,17 @@ class OldBillingManager(
             .build()
     }
 
-    fun setupBillingConnection() {
+    override fun setupBillingConnection() {
         if (!billingClient.isReady) {
             billingClient.startConnection(object : BillingClientStateListener {
                 override fun onBillingSetupFinished(billingResult: BillingResult) {
                     when (billingResult.responseCode) {
                         BillingClient.BillingResponseCode.OK -> {
                             Log.d(TAG, "Billing connection success")
-                            queryAllSkuDetails() // Gọi extension function
+                            queryAllSkuDetails()
                             queryUserPurchases()
-                            // Gọi refreshTrialEligibility sau khi đã có cả thông tin sản phẩm và giao dịch mua
-                            refreshTrialEligibility()
                         }
-
-                        else -> Log.e(
-                            TAG,
-                            "Billing connection error: ${billingResult.responseCode}"
-                        )
+                        else -> Log.e(TAG, "Billing connection error: ${billingResult.responseCode}")
                     }
                 }
 
@@ -71,7 +63,7 @@ class OldBillingManager(
                 }
             })
         } else {
-            queryAllSkuDetails() // Gọi extension function
+            queryAllSkuDetails()
         }
     }
     // endregion
@@ -81,13 +73,11 @@ class OldBillingManager(
     }
 
     // region Purchases
-    // Truy vấn tất cả giao dịch của người dùng (cho cả sản phẩm in-app và subscriptions)
     private fun queryUserPurchases() {
         queryPurchases(BillingClient.SkuType.SUBS)
         queryPurchases(BillingClient.SkuType.INAPP)
     }
 
-    // Truy vấn giao dịch theo loại sản phẩm
     private fun queryPurchases(productType: String) {
         billingClient.queryPurchasesAsync(
             QueryPurchasesParams.newBuilder()
@@ -98,10 +88,10 @@ class OldBillingManager(
                 handleAllPurchases(purchasesList)
                 if (productType == BillingClient.SkuType.INAPP) {
                     purchasesList.forEach { purchase ->
-                        if (purchase.products.contains(PRODUCT_ID_LIFETIME)) {
-                            Log.d("Cancel Lifetime", "Cancel Lifetime")
-                            //Hủy Lifetime phía dev
-                            consumePurchase(purchase)
+                        if (purchase.products.contains(PRODUCT_ID_LIFETIME) && purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
+                            Log.d(TAG, "Found lifetime purchase: ${purchase.purchaseToken}")
+                            // Chỉ tiêu thụ nếu cần (ví dụ: thử nghiệm hoặc chính sách cụ thể)
+                            // consumePurchase(purchase)
                         }
                     }
                 }
@@ -122,7 +112,6 @@ class OldBillingManager(
         Log.d(TAG, "Updated purchasedProductIds: $newPurchasedProductIds")
     }
 
-    // Lấy purchaseToken của giao dịch gần nhất cho một sản phẩm cụ thể.
     private fun getOldPurchaseToken(productId: String): String? {
         return _purchases.value
             .filter { it.products.contains(productId) && it.purchaseState == Purchase.PurchaseState.PURCHASED }
@@ -132,104 +121,94 @@ class OldBillingManager(
     // endregion
 
     // region Billing Flow
-    fun launchBillingFlow(skuDetails: SkuDetails) {
-        // Kiểm tra trạng thái BillingClient
+    override fun launchBillingFlow(productDetails: Any, offerToken: String?) {
+        if (productDetails !is SkuDetails) {
+            Log.e(TAG, "Invalid productDetails type: ${productDetails.javaClass}")
+            return
+        }
+        // Logic hiện tại của launchBillingFlow
         if (!billingClient.isReady) {
             Log.e(TAG, "BillingClient is not ready")
             Toast.makeText(context, "Dịch vụ thanh toán không sẵn sàng", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // Kiểm tra xem SkuDetails có hợp lệ không
-        if (skuDetails.sku.isEmpty()) {
+        if (productDetails.sku.isEmpty()) {
             Log.e(TAG, "Invalid SkuDetails: SKU is empty")
             Toast.makeText(context, "Thông tin sản phẩm không hợp lệ", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // Tạo BillingFlowParams cho sản phẩm
         val billingFlowParams = BillingFlowParams.newBuilder()
-            .setSkuDetails(skuDetails)
+            .setSkuDetails(productDetails)
             .build()
 
-        // Khởi chạy quy trình thanh toán
         val result = billingClient.launchBillingFlow(activity, billingFlowParams)
         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
             Log.e(TAG, "Failed to launch billing flow: ${result.responseCode}")
             Toast.makeText(context, "Không thể khởi động thanh toán: ${result.responseCode}", Toast.LENGTH_SHORT).show()
         } else {
-            Log.d(TAG, "Billing flow launched for ${skuDetails.sku}")
+            Log.d(TAG, "Billing flow launched for ${productDetails.sku}")
         }
     }
 
-    // Quy trình cấp gói
-    fun launchBillingFlowForUpgrade(skuDetails: SkuDetails, oldSkuId: String) {
-        // Lấy purchase token của đăng ký cũ
-        val oldPurchaseToken = getOldPurchaseToken(oldSkuId) ?: run {
-            Log.e(TAG, "No valid purchase token found for $oldSkuId")
+    override fun launchBillingFlowForUpgrade(productDetails: Any, oldProductId: String) {
+        if (productDetails !is SkuDetails) {
+            Log.e(TAG, "Invalid productDetails type: ${productDetails.javaClass}")
+            return
+        }
+        // Logic hiện tại của launchBillingFlowForUpgrade
+        val oldPurchaseToken = getOldPurchaseToken(oldProductId) ?: run {
+            Log.e(TAG, "No valid purchase token found for $oldProductId")
             Toast.makeText(context, "Không tìm thấy giao dịch trước đó", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // Kiểm tra xem sản phẩm có phải là đăng ký hay không
-        if (skuDetails.type != BillingClient.SkuType.SUBS) {
-            Log.e(TAG, "Unsupported product type for upgrade: ${skuDetails.type}")
+        if (productDetails.type != BillingClient.SkuType.SUBS) {
+            Log.e(TAG, "Unsupported product type for upgrade: ${productDetails.type}")
             Toast.makeText(context, "Sản phẩm không phải là đăng ký", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // Kiểm tra trạng thái BillingClient
-        if (!billingClient.isReady()) {
+        if (!billingClient.isReady) {
             Log.e(TAG, "BillingClient is not ready")
             Toast.makeText(context, "Dịch vụ thanh toán không sẵn sàng", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // Tạo BillingFlowParams cho sản phẩm mới
         val billingFlowParams = BillingFlowParams.newBuilder()
-            .setSkuDetails(skuDetails)
-            // Trong Billing Library < 5.0, không cần setOldSku hoặc SubscriptionUpdateParams
-            // Google Play tự xử lý nâng cấp dựa trên giao dịch hiện tại
+            .setSkuDetails(productDetails)
             .build()
 
-        // Khởi chạy quy trình thanh toán
         val result = billingClient.launchBillingFlow(activity, billingFlowParams)
         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
             Log.e(TAG, "Failed to launch billing flow: ${result.responseCode}")
             Toast.makeText(context, "Không thể khởi động thanh toán", Toast.LENGTH_SHORT).show()
         } else {
-            Log.d(TAG, "Billing flow launched for upgrade to ${skuDetails.sku}, old purchase token: $oldPurchaseToken")
+            Log.d(TAG, "Billing flow launched for upgrade to ${productDetails.sku}, old purchase token: $oldPurchaseToken")
         }
     }
 
-
-    // Quy trình hạ cấp gói
     fun launchBillingFlowForDowngrade(skuDetails: SkuDetails, oldSkuId: String) {
-        // Lấy purchase token của đăng ký cũ
         val oldPurchaseToken = getOldPurchaseToken(oldSkuId) ?: run {
             Log.e(TAG, "No valid purchase token found for $oldSkuId")
             return
         }
 
-        // Kiểm tra xem sản phẩm có phải là đăng ký hay không
         if (skuDetails.type != BillingClient.SkuType.SUBS) {
             Log.e(TAG, "Unsupported product type for downgrade: ${skuDetails.type}")
             return
         }
 
-        // Kiểm tra trạng thái BillingClient
         if (!billingClient.isReady) {
             Log.e(TAG, "BillingClient is not ready")
             return
         }
 
-        // Tạo BillingFlowParams cho sản phẩm mới
         val billingFlowParams = BillingFlowParams.newBuilder()
             .setSkuDetails(skuDetails)
-            // Trong Billing Library < 5.0, không cần setOldSku, Google Play tự xử lý dựa trên purchaseToken
             .build()
 
-        // Khởi chạy quy trình thanh toán
         val result = billingClient.launchBillingFlow(activity, billingFlowParams)
         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
             Log.e(TAG, "Failed to launch billing flow: ${result.responseCode}")
@@ -240,7 +219,6 @@ class OldBillingManager(
     // endregion
 
     // region Purchase Handling
-    // Xử lý kết quả của các giao dịch (mới, nâng cấp, hạ cấp).
     override fun onPurchasesUpdated(billingResult: BillingResult, purchases: List<Purchase>?) {
         when (billingResult.responseCode) {
             BillingClient.BillingResponseCode.OK -> {
@@ -250,27 +228,17 @@ class OldBillingManager(
                         if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
                             if (!purchase.isAcknowledged) {
                                 acknowledgePurchase(purchase)
-                                refreshTrialEligibility()
                             }
+                            billingListener.onPurchaseSuccess(purchase)
                         }
-                        // Cập nhật trạng thái đủ điều kiện dùng thử
-                        if (this::trialEligibilityChecker.isInitialized) {
-                            trialEligibilityChecker.updateAfterPurchase(purchase)
-                        }
-                        billingListener.onPurchaseSuccess(purchase)
                     }
                 }
             }
-
             BillingClient.BillingResponseCode.USER_CANCELED -> billingListener.onPurchaseCancelled()
-            else -> billingListener.onPurchaseError(
-                billingResult.responseCode,
-                billingResult.debugMessage
-            )
+            else -> billingListener.onPurchaseError(billingResult.responseCode, billingResult.debugMessage)
         }
     }
 
-    // Xác nhận giao dịch với Google Play để hoàn tất quá trình mua hàng.
     private fun acknowledgePurchase(purchase: Purchase) {
         val params = AcknowledgePurchaseParams.newBuilder()
             .setPurchaseToken(purchase.purchaseToken)
@@ -279,44 +247,13 @@ class OldBillingManager(
         billingClient.acknowledgePurchase(params) { result ->
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                 Log.d(TAG, "Purchase acknowledged successfully")
+            } else {
+                Log.e(TAG, "Failed to acknowledge purchase: ${result.debugMessage}")
             }
         }
     }
     // endregion
 
-    // Khởi tạo trong constructor hoặc một phương thức init
-    private fun initTrialEligibilityChecker() {
-        trialEligibilityChecker = TrialEligibilityChecker(billingClient)
-
-        // Liên kết với productDetailsMap
-        TrialEligibilityChecker.listenToSkuDetails(skuDetailsMap)
-    }
-
-    // Làm mới trạng thái đủ điều kiện dùng thử
-    fun refreshTrialEligibility() {
-        if (this::trialEligibilityChecker.isInitialized) {
-            trialEligibilityChecker.refreshTrialEligibility(_productDetailsMap.value)
-        }
-    }
-
-
-    // Kiểm tra nhanh xem người dùng có đủ điều kiện dùng thử một sản phẩm không
-    fun isEligibleForTrial(productId: String): Boolean {
-        return if (this::trialEligibilityChecker.isInitialized) {
-            trialEligibilityChecker.isEligibleForTrial(productId)
-        } else false
-    }
-
-    fun getTrialTimeInfo(productId: String): TrialTimeInfo {
-        return if (this::trialEligibilityChecker.isInitialized) {
-            trialEligibilityChecker.getTrialTimeInfo(productId)
-        } else {
-            TrialTimeInfo(false, 0, 0)
-        }
-    }
-
-
-    // Tiêu thụ giao dịch (dùng cho sản phẩm in-app tiêu thụ được).
     private fun consumePurchase(purchase: Purchase) {
         val consumeParams = ConsumeParams.newBuilder()
             .setPurchaseToken(purchase.purchaseToken)
@@ -326,17 +263,15 @@ class OldBillingManager(
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                 Log.i(TAG, "Đã tiêu thụ purchase: ${purchase.purchaseToken}")
             } else {
-                Log.i(TAG, "Lỗi khi tiêu thụ: ${billingResult.debugMessage}")
+                Log.e(TAG, "Lỗi khi tiêu thụ: ${billingResult.debugMessage}")
             }
         }
     }
 
-    fun endConnection() {
+    override fun endConnection() {
         if (billingClient.isReady) {
             billingClient.endConnection()
             Log.d(TAG, "Billing connection closed")
         }
     }
 }
-
-

@@ -15,8 +15,6 @@ private const val TAG = "BillingManager"
 private val _productDetailsList = MutableStateFlow<List<ProductDetails>>(emptyList())
 val _productDetailsMap = MutableStateFlow<Map<String, ProductDetails>>(emptyMap())
 
-private lateinit var trialEligibilityChecker: TrialEligibilityChecker
-
 // Expose dữ liệu productDetailsMap ra ngoài dưới dạng StateFlow
 val BillingManager.productDetailsMap: StateFlow<Map<String, ProductDetails>>
     get() = _productDetailsMap.asStateFlow()

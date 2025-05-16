@@ -4,10 +4,9 @@ import com.android.billingclient.api.BillingClient
 import kotlinx.coroutines.flow.StateFlow
 
 interface BillingManagerInterface {
-    val productDetailsMap: StateFlow<Map<String, Any>> // Map<String, ProductDetails> hoặc Map<String, SkuDetails>
+    val productDetailsMap: StateFlow<Map<String, Any>>
     fun setupBillingConnection()
-    fun launchBillingFlow(productDetails: Any, offerToken: String? = null) // Any để hỗ trợ cả ProductDetails và SkuDetails
+    fun launchBillingFlow(productDetails: Any, offerToken: String? = null)
     fun launchBillingFlowForUpgrade(productDetails: Any, oldProductId: String)
-    fun isEligibleForTrial(productId: String): Boolean
-    fun getTrialTimeInfo(productId: String): TrialTimeInfo
+    fun endConnection() // Thêm phương thức này
 }

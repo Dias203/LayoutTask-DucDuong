@@ -17,26 +17,21 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.lifecycle.lifecycleScope
 import com.android.billingclient.api.ProductDetails
+import com.android.billingclient.api.SkuDetails
 import com.eco.musicplayer.audioplayer.music.databinding.ActivityPaywallBinding
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 class PaywallActivity : AppCompatActivity() {
     private lateinit var binding: ActivityPaywallBinding
-
     private val viewModel: PaywallViewModel by viewModels {
-        PaywallViewModelFactory(
-            getSharedPreferences("BillingPrefs", MODE_PRIVATE),
-            this,
-            application
-        )
+        PaywallViewModelFactory(getSharedPreferences("BillingPrefs", MODE_PRIVATE), this, application)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityPaywallBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
         initUI()
         setupObservers()
     }
@@ -48,21 +43,19 @@ class PaywallActivity : AppCompatActivity() {
     }
 
     private fun setupObservers() {
-        // Quan sát trạng thái UI
         lifecycleScope.launch {
             viewModel.uiState.collect { state ->
                 when (state) {
                     is PaywallUiState.PurchaseSuccess -> handlePurchaseSuccess(state.productId)
-                    is PaywallUiState.Error -> showError(state.message)
-                    else -> {}
+                    is PaywallUiState.Error -> showToast(state.message)
+                    else -> Unit
                 }
             }
         }
 
-        // Quan sát productDetailsMap và selectedProductId để cập nhật UI
         lifecycleScope.launch {
-            viewModel.productDetailsMap.combine(viewModel.selectedProductId) { map, selectedId ->
-                Pair(map, selectedId)
+            viewModel.detailsMap.combine(viewModel.selectedProductId) { map, selectedId ->
+                map to selectedId
             }.collect { (map, selectedId) ->
                 if (map.isNotEmpty() && selectedId != null) {
                     setupPlanTexts(map)
@@ -71,192 +64,205 @@ class PaywallActivity : AppCompatActivity() {
             }
         }
 
-        // Quan sát purchasedProducts
         lifecycleScope.launch {
-            viewModel.purchasedProducts.collect { products ->
-                updatePlanSelectionBasedOnPurchases(products)
+            viewModel.purchasedProducts.collect(::updatePlanSelectionBasedOnPurchases)
+        }
+    }
+
+    private fun showToast(message: String) = Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+
+    private fun handlePurchaseSuccess(productId: String) {
+        showToast("Purchase successful!")
+        val button = when (productId) {
+            PRODUCT_ID_MONTH -> binding.btnMonthly
+            PRODUCT_ID_YEAR -> binding.btnYearly
+            else -> binding.btnLifetime
+        }
+        button.disablePurchasedButton()
+        if (productId == PRODUCT_ID_MONTH) {
+            binding.bestDeal.updatePurchasedBadge()
+        }
+    }
+
+    private fun setupPlanTexts(detailsMap: Map<String, Any>) {
+        listOf(
+            PRODUCT_ID_MONTH to binding.btnMonthly,
+            PRODUCT_ID_YEAR to binding.btnYearly,
+            PRODUCT_ID_LIFETIME to binding.btnLifetime
+        ).forEach { (id, button) ->
+            detailsMap[id]?.let { button.setupPlanButton(it, id) } ?: showToast("Không tìm thấy thông tin gói $id")
+        }
+    }
+
+    private fun ViewGroup.setupPlanButton(plan: Any, productId: String) {
+        val tv2 = findViewById<TextView>(R.id.tv2).apply { text = getTitleText(productId) }
+        val tv3 = findViewById<TextView>(R.id.tv3)
+        val tv4 = findViewById<TextView>(R.id.tv4)
+        val tv5 = findViewById<TextView>(R.id.tv5)
+
+        when (plan) {
+            is ProductDetails -> setupProductDetails(plan, productId, tv3, tv4, tv5)
+            is SkuDetails -> setupSkuDetails(plan, productId, tv3, tv4, tv5)
+            else -> setupUnknownPlan(productId, tv2, tv3, tv4, tv5)
+        }
+    }
+
+    private fun setupProductDetails(
+        plan: ProductDetails,
+        productId: String,
+        tv3: TextView,
+        tv4: TextView,
+        tv5: TextView
+    ) {
+        if (productId == PRODUCT_ID_LIFETIME) {
+            plan.oneTimePurchaseOfferDetails?.let { offer ->
+                tv3.setVisibleText("Thanh toán một lần")
+                tv4.text = offer.formattedPrice
+                tv5.text = "trọn đời"
+            } ?: setupEmptyLifetime(tv3, tv4, tv5)
+        } else {
+            val firstOffer = plan.subscriptionOfferDetails?.firstOrNull()
+            val lastOffer = plan.subscriptionOfferDetails?.lastOrNull()
+
+            firstOffer?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
+                val periodText = parsePeriodToReadableText(phase.billingPeriod ?: "")
+                tv3.setVisibleText(
+                    when {
+                        phase.priceAmountMicros == 0L -> "Miễn phí"
+                        periodText != "Không rõ" -> "${phase.formattedPrice}/$periodText"
+                        else -> "Giá không xác định"
+                    }
+                )
+            } ?: tv3.setVisibleText("N/A")
+
+            lastOffer?.pricingPhases?.pricingPhaseList?.firstOrNull { it.priceAmountMicros > 0 }?.let { phase ->
+                val periodText = parsePeriodToReadableText(phase.billingPeriod ?: "")
+                tv4.text = phase.formattedPrice
+                tv5.text = if (periodText != "Không rõ") periodText else "Không rõ"
+            } ?: setupEmptySubscription(tv4, tv5)
+        }
+
+        if (viewModel.selectedProductId.value == productId) {
+            binding.tvSub.apply {
+                text = getSubscriptionSummary(plan, productId)
+                visibility = View.VISIBLE
             }
         }
     }
 
-    private fun showError(message: String) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun handlePurchaseSuccess(productId: String) {
-        Toast.makeText(this, "Purchase successful!", Toast.LENGTH_SHORT).show()
-
-        when (productId) {
-            PRODUCT_ID_MONTH -> binding.btnMonthly.disablePurchasedButton()
-            PRODUCT_ID_YEAR -> binding.btnYearly.disablePurchasedButton()
-            PRODUCT_ID_LIFETIME -> binding.btnLifetime.disablePurchasedButton()
+    private fun setupSkuDetails(
+        plan: SkuDetails,
+        productId: String,
+        tv3: TextView,
+        tv4: TextView,
+        tv5: TextView
+    ) {
+        when {
+            plan.freeTrialPeriod.isNotEmpty() -> {
+                tv3.setVisibleText("Miễn phí ${parsePeriodToReadableText(plan.freeTrialPeriod)}")
+                tv4.text = plan.price
+                tv5.text = parsePeriodToReadableText(plan.subscriptionPeriod)
+            }
+            plan.introductoryPrice.isNotEmpty() -> {
+                tv3.setVisibleText("${plan.introductoryPrice}/${parsePeriodToReadableText(plan.subscriptionPeriod)}")
+                tv4.text = plan.price
+                tv5.text = parsePeriodToReadableText(plan.subscriptionPeriod)
+            }
+            else -> {
+                tv3.visibility = View.GONE
+                tv4.text = plan.price
+                tv5.text = if (productId == PRODUCT_ID_LIFETIME) "trọn đời" else parsePeriodToReadableText(plan.subscriptionPeriod)
+            }
         }
 
-        if (productId == PRODUCT_ID_MONTH) {
-            binding.bestDeal.apply {
-                text = "Đã mua"
-                setBackgroundResource(R.drawable.bg_disable)
+        if (viewModel.selectedProductId.value == productId) {
+            binding.tvSub.apply {
+                text = getSubscriptionSummary(plan, productId)
+                visibility = View.VISIBLE
             }
         }
     }
 
     @SuppressLint("SetTextI18n")
-    private fun setupPlanTexts(productDetailsMap: Map<String, ProductDetails>) {
-        // Xử lý gói MONTHLY
-        productDetailsMap[PRODUCT_ID_MONTH]?.let { monthlyPlan ->
-            binding.btnMonthly.apply {
-                findViewById<TextView>(R.id.tv2).text = getTitleText(monthlyPlan.productId)
-
-                val firstOffer = monthlyPlan.subscriptionOfferDetails?.firstOrNull()
-                val lastOffer = monthlyPlan.subscriptionOfferDetails?.lastOrNull()
-
-                // Hiển thị ưu đãi trên tv3 nếu có
-                if (firstOffer?.pricingPhases?.pricingPhaseList?.firstOrNull() != null) {
-                    firstOffer.pricingPhases.pricingPhaseList.first().let { phase ->
-                        findViewById<TextView>(R.id.tv3).apply {
-                            text = "${phase.formattedPrice} cho 14 ngày, gia hạn sau ${parsePeriodToReadableText(phase.billingPeriod)}"
-                            visibility = View.VISIBLE
-                        }
-                    }
-                } else {
-                    findViewById<TextView>(R.id.tv3).visibility = View.GONE
-                }
-
-                // Cập nhật tvSub chỉ cho gói được chọn
-                if (viewModel.selectedProductId.value == PRODUCT_ID_MONTH) {
-                    if (firstOffer?.pricingPhases?.pricingPhaseList?.firstOrNull() != null) {
-                        firstOffer.pricingPhases.pricingPhaseList.first().let { phase ->
-                            binding.tvSub.text = "${phase.formattedPrice} cho 14 ngày, gia hạn sau ${parsePeriodToReadableText(phase.billingPeriod)}"
-                            binding.tvSub.visibility = View.VISIBLE
-                        }
-                    } else if (lastOffer?.pricingPhases?.pricingPhaseList?.firstOrNull() != null) {
-                        lastOffer.pricingPhases.pricingPhaseList.first().let { phase ->
-                            val tv4 = findViewById<TextView>(R.id.tv4).apply {
-                                text = phase.formattedPrice
-                            }
-                            val tv5 = findViewById<TextView>(R.id.tv5).apply {
-                                text = parsePeriodToReadableText(phase.billingPeriod)
-                            }
-                            binding.tvSub.text = "${tv4.text}/${tv5.text}"
-                            binding.tvSub.visibility = View.VISIBLE
-                        }
-                    } else {
-                        binding.tvSub.visibility = View.GONE
-                    }
-                }
-
-                // Set dữ liệu cho tv4 và tv5 từ lastOffer (nếu có)
-                lastOffer?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
-                    findViewById<TextView>(R.id.tv4).text = phase.formattedPrice
-                    findViewById<TextView>(R.id.tv5).text = parsePeriodToReadableText(phase.billingPeriod)
-                }
+    private fun setupUnknownPlan(productId: String, tv2: TextView, tv3: TextView, tv4: TextView, tv5: TextView) {
+        tv2.text = "Không hỗ trợ"
+        tv3.visibility = View.GONE
+        tv4.text = ""
+        tv5.text = "Không rõ"
+        if (viewModel.selectedProductId.value == productId) {
+            binding.tvSub.apply {
+                text = "N/A"
+                visibility = View.VISIBLE
             }
         }
+    }
 
-        // Xử lý gói YEARLY
-        productDetailsMap[PRODUCT_ID_YEAR]?.let { yearlyPlan ->
-            binding.btnYearly.apply {
-                findViewById<TextView>(R.id.tv2).text = getTitleText(yearlyPlan.productId)
-
-                val firstOffer = yearlyPlan.subscriptionOfferDetails?.firstOrNull()
-                val lastOffer = yearlyPlan.subscriptionOfferDetails?.lastOrNull()
-
-                // Hiển thị ưu đãi trên tv3 nếu có
-                if (firstOffer?.pricingPhases?.pricingPhaseList?.firstOrNull() != null) {
-                    firstOffer.pricingPhases.pricingPhaseList.first().let { phase ->
-                        findViewById<TextView>(R.id.tv3).apply {
-                            text = "${phase.formattedPrice} cho 1 năm, gia hạn sau ${parsePeriodToReadableText(phase.billingPeriod)}"
-                            visibility = View.VISIBLE
-                        }
-                    }
+    private fun getSubscriptionSummary(plan: Any, productId: String): String {
+        return when (plan) {
+            is ProductDetails -> {
+                if (productId == PRODUCT_ID_LIFETIME) {
+                    plan.oneTimePurchaseOfferDetails?.formattedPrice?.let { "Thanh toán một lần: $it" } ?: "N/A"
                 } else {
-                    findViewById<TextView>(R.id.tv3).visibility = View.GONE
-                }
+                    val firstOffer = plan.subscriptionOfferDetails?.firstOrNull()
+                    val lastOffer = plan.subscriptionOfferDetails?.lastOrNull()
 
-                // Cập nhật tvSub chỉ cho gói được chọn
-                if (viewModel.selectedProductId.value == PRODUCT_ID_YEAR) {
-                    if (firstOffer?.pricingPhases?.pricingPhaseList?.firstOrNull() != null) {
-                        firstOffer.pricingPhases.pricingPhaseList.first().let { phase ->
-                            binding.tvSub.text = "${phase.formattedPrice} cho 1 năm, gia hạn sau ${parsePeriodToReadableText(phase.billingPeriod)}"
-                            binding.tvSub.visibility = View.VISIBLE
-                        }
-                    } else if (lastOffer?.pricingPhases?.pricingPhaseList?.firstOrNull() != null) {
-                        lastOffer.pricingPhases.pricingPhaseList.first().let { phase ->
-                            val tv4 = findViewById<TextView>(R.id.tv4).apply {
-                                text = phase.formattedPrice
+                    val firstPhase = firstOffer?.pricingPhases?.pricingPhaseList?.firstOrNull()
+                    val lastPhase = lastOffer?.pricingPhases?.pricingPhaseList?.firstOrNull { it.priceAmountMicros > 0 }
+
+                    when {
+                        firstPhase != null && lastPhase != null -> {
+                            val firstPeriod = parsePeriodToReadableText(firstPhase.billingPeriod)
+                            val lastPeriod = parsePeriodToReadableText(lastPhase.billingPeriod)
+                            val firstPrice = if (firstPhase.priceAmountMicros == 0L) "Miễn phí" else firstPhase.formattedPrice
+                            if (firstPeriod != "Không rõ" && lastPeriod != "Không rõ") {
+                                "$firstPrice/$firstPeriod đầu tiên, sau đó ${lastPhase.formattedPrice}/$lastPeriod"
+                            } else {
+                                "Giá không xác định"
                             }
-                            val tv5 = findViewById<TextView>(R.id.tv5).apply {
-                                text = parsePeriodToReadableText(phase.billingPeriod)
-                            }
-                            binding.tvSub.text = "${tv4.text}/${tv5.text}"
-                            binding.tvSub.visibility = View.VISIBLE
                         }
-                    } else {
-                        binding.tvSub.visibility = View.GONE
+                        lastPhase != null -> {
+                            val lastPeriod = parsePeriodToReadableText(lastPhase.billingPeriod)
+                            if (lastPeriod != "Không rõ") "${lastPhase.formattedPrice}/$lastPeriod" else "Giá không xác định"
+                        }
+                        else -> "N/A"
                     }
                 }
-
-                lastOffer?.pricingPhases?.pricingPhaseList?.firstOrNull()?.let { phase ->
-                    findViewById<TextView>(R.id.tv4).text = phase.formattedPrice
-                    findViewById<TextView>(R.id.tv5).text = parsePeriodToReadableText(phase.billingPeriod)
+            }
+            is SkuDetails -> {
+                when {
+                    plan.freeTrialPeriod.isNotEmpty() -> {
+                        "Miễn phí ${parsePeriodToReadableText(plan.freeTrialPeriod)}, sau đó ${plan.price}/${parsePeriodToReadableText(plan.subscriptionPeriod)}"
+                    }
+                    plan.introductoryPrice.isNotEmpty() -> {
+                        "${plan.introductoryPrice}/${parsePeriodToReadableText(plan.subscriptionPeriod)}, sau đó ${plan.price}/${parsePeriodToReadableText(plan.subscriptionPeriod)}"
+                    }
+                    else -> {
+                        if (productId == PRODUCT_ID_LIFETIME) "Thanh toán một lần: ${plan.price}"
+                        else "${plan.price}/${parsePeriodToReadableText(plan.subscriptionPeriod)}"
+                    }
                 }
             }
-        }
-
-        // Xử lý gói LIFETIME
-        productDetailsMap[PRODUCT_ID_LIFETIME]?.let { lifetimePlan ->
-            binding.btnLifetime.apply {
-                findViewById<TextView>(R.id.tv2).text = getTitleText(lifetimePlan.productId)
-                findViewById<TextView>(R.id.tv3).text = "One-time payment"
-
-                lifetimePlan.oneTimePurchaseOfferDetails?.let { offer ->
-                    findViewById<TextView>(R.id.tv4).text = offer.formattedPrice
-                    findViewById<TextView>(R.id.tv5).text = "forever"
-                }
-
-                // Cập nhật tvSub chỉ cho gói được chọn
-                if (viewModel.selectedProductId.value == PRODUCT_ID_LIFETIME) {
-                    binding.tvSub.text = "One-time payment: ${lifetimePlan.oneTimePurchaseOfferDetails?.formattedPrice}"
-                    binding.tvSub.visibility = View.VISIBLE
-                }
-            }
+            else -> "N/A"
         }
     }
 
     private fun setupPlanSelection() {
-        binding.btnMonthly.setOnClickListener {
-            viewModel.selectPlan(PRODUCT_ID_MONTH)
-        }
-
-        binding.btnYearly.setOnClickListener {
-            viewModel.selectPlan(PRODUCT_ID_YEAR)
-        }
-
-        binding.btnLifetime.setOnClickListener {
-            viewModel.selectPlan(PRODUCT_ID_LIFETIME)
-        }
-
-        binding.btnStartFreeTrial.setOnClickListener {
-            viewModel.purchaseSelectedProduct()
-        }
+        binding.btnMonthly.setOnClickListener { viewModel.selectPlan(PRODUCT_ID_MONTH) }
+        binding.btnYearly.setOnClickListener { viewModel.selectPlan(PRODUCT_ID_YEAR) }
+        binding.btnLifetime.setOnClickListener { viewModel.selectPlan(PRODUCT_ID_LIFETIME) }
+        binding.btnStartFreeTrial.setOnClickListener { viewModel.purchaseSelectedProduct() }
     }
 
-    @SuppressLint("SetTextI18n")
-    private fun updatePlanSelectionBasedOnPurchases(currentPurchasedProducts: Set<String>) {
+    private fun updatePlanSelectionBasedOnPurchases(purchasedProducts: Set<String>) {
         val buttons = listOf(
             binding.btnMonthly to PRODUCT_ID_MONTH,
             binding.btnYearly to PRODUCT_ID_YEAR,
             binding.btnLifetime to PRODUCT_ID_LIFETIME
         )
 
-        if (currentPurchasedProducts.contains(PRODUCT_ID_LIFETIME)) {
-            buttons.forEach { (button, productId) ->
-                if (productId == PRODUCT_ID_LIFETIME) {
-                    button.disablePurchasedButton()
-                } else {
-                    button.isEnabled = false
-                    button.alpha = 0.5f
-                }
+        if (purchasedProducts.contains(PRODUCT_ID_LIFETIME)) {
+            buttons.forEach { (button, id) ->
+                if (id == PRODUCT_ID_LIFETIME) button.disablePurchasedButton() else button.disable()
             }
             binding.btnStartFreeTrial.apply {
                 isEnabled = false
@@ -265,138 +271,69 @@ class PaywallActivity : AppCompatActivity() {
             return
         }
 
-        val currentSubscription =
-            currentPurchasedProducts.firstOrNull { it in ConstantsProductID.subsListProduct }
+        val currentSubscription = purchasedProducts.firstOrNull { it in ConstantsProductID.subsListProduct }
 
         buttons.forEach { (button, productId) ->
             when {
-                currentPurchasedProducts.contains(productId) -> {
+                purchasedProducts.contains(productId) -> {
                     button.disablePurchasedButton()
-                    when (productId) {
-                        PRODUCT_ID_MONTH -> {
-                            binding.bestDeal.apply {
-                                text = "Đã mua"
-                                setBackgroundResource(R.drawable.bg_disable)
-                            }
-                        }
-
-                        PRODUCT_ID_YEAR -> {
-                            binding.bestDeal2.apply {
-                                visibility = View.VISIBLE
-                                text = "Đã mua"
-                                setBackgroundResource(R.drawable.bg_disable)
-                            }
-                        }
-
-                        else -> {
-                            binding.bestDeal3.apply {
-                                visibility = View.VISIBLE
-                                text = "Đã mua"
-                                setBackgroundResource(R.drawable.bg_disable)
-                            }
-                        }
-                    }
+                    updatePurchasedBadge(productId)
                 }
-
-                currentSubscription != null && getSubscriptionLevel(productId) <= getSubscriptionLevel(
-                    currentSubscription
-                ) -> {
-                    button.isEnabled = false
-                    button.alpha = 0.5f
+                currentSubscription != null && getSubscriptionLevel(productId) <= getSubscriptionLevel(currentSubscription) -> {
+                    button.disable()
                 }
-
                 else -> {
-                    val isSelected = viewModel.selectedProductId.value == productId
-                    button.apply {
-                        setBackgroundResource(
-                            if (isSelected) R.drawable.bg_selected_paywall
-                            else R.drawable.bg_unselected_paywall
-                        )
-                        findViewById<AppCompatImageView>(R.id.radioButton1).setImageResource(
-                            if (isSelected) R.drawable.ic_checked
-                            else R.drawable.ic_uncheck
-                        )
-                        isEnabled = true
-                        alpha = 1.0f
-                    }
+                    button.updateSelection(viewModel.selectedProductId.value == productId)
                 }
             }
         }
 
-        binding.btnStartFreeTrial.text =
-            if (currentSubscription != null) "Upgrade Plan" else "Start Free Trial"
+        binding.btnStartFreeTrial.text = if (currentSubscription != null) "Nâng cấp gói" else "Bắt đầu dùng thử miễn phí"
+    }
+
+    private fun updatePurchasedBadge(productId: String) {
+        when (productId) {
+            PRODUCT_ID_MONTH -> binding.bestDeal.updatePurchasedBadge()
+            PRODUCT_ID_YEAR -> binding.bestDeal2.updatePurchasedBadge()
+            PRODUCT_ID_LIFETIME -> binding.bestDeal3.updatePurchasedBadge()
+        }
     }
 
     private fun updateSelectedPlanUi(productId: String) {
-        val buttons = listOf(
+        listOf(
             binding.btnMonthly to PRODUCT_ID_MONTH,
             binding.btnYearly to PRODUCT_ID_YEAR,
             binding.btnLifetime to PRODUCT_ID_LIFETIME
-        )
-
-        for ((button, id) in buttons) {
-            if (viewModel.purchasedProducts.value.contains(id)) {
-                continue
-            }
-            val isSelected = id == productId
-            val background = if (isSelected) R.drawable.bg_selected_paywall else R.drawable.bg_unselected_paywall
-            val icon = if (isSelected) R.drawable.ic_checked else R.drawable.ic_uncheck
-
-            button.setBackgroundResource(background)
-            button.findViewById<AppCompatImageView>(R.id.radioButton1).setImageResource(icon)
-
-            if (isSelected) {
-                val tv3OfSelectedButton = button.findViewById<TextView>(R.id.tv3)
-                if (tv3OfSelectedButton.visibility == View.VISIBLE) {
-                    // Nếu tv3 hiển thị (có firstOffer), dùng nội dung của tv3
-                    binding.tvSub.text = tv3OfSelectedButton.text
-                    binding.tvSub.visibility = View.VISIBLE
-                } else if (id != PRODUCT_ID_LIFETIME) {
-                    // Nếu không có firstOffer, dùng tv4 và tv5
-                    val tv4 = button.findViewById<TextView>(R.id.tv4)
-                    val tv5 = button.findViewById<TextView>(R.id.tv5)
-                    binding.tvSub.text = "${tv4.text}/${tv5.text}"
-                    binding.tvSub.visibility = View.VISIBLE
-                } else {
-                    // Trường hợp LIFETIME, ẩn tvSub
-                    binding.tvSub.visibility = View.GONE
+        ).forEach { (button, id) ->
+            if (viewModel.purchasedProducts.value.contains(id)) return@forEach
+            button.updateSelection(id == productId)
+            if (id == productId) {
+                val details = viewModel.detailsMap.value[id]
+                binding.tvSub.apply {
+                    text = details?.let { getSubscriptionSummary(it, id) } ?: "N/A"
+                    visibility = View.VISIBLE
                 }
             }
         }
     }
 
-    private fun getSubscriptionLevel(productId: String): Int {
-        return when (productId) {
-            PRODUCT_ID_MONTH -> 1
-            PRODUCT_ID_YEAR -> 2
-            PRODUCT_ID_LIFETIME -> 3
-            else -> 0
-        }
+    private fun getSubscriptionLevel(productId: String) = when (productId) {
+        PRODUCT_ID_MONTH -> 1
+        PRODUCT_ID_YEAR -> 2
+        PRODUCT_ID_LIFETIME -> 3
+        else -> 0
     }
 
-    private fun getTitleText(billingTitle: String): String {
-        return when {
-            billingTitle.contains(
-                PRODUCT_ID_MONTH,
-                ignoreCase = true
-            ) -> getString(R.string.sub_week)
-
-            billingTitle.contains(
-                PRODUCT_ID_YEAR,
-                ignoreCase = true
-            ) -> getString(R.string.sub_year)
-
-            billingTitle.contains(
-                PRODUCT_ID_LIFETIME,
-                ignoreCase = true
-            ) -> getString(R.string.in_app)
-
-            billingTitle.contains(PRODUCT_ID_FREE_TRIAL, ignoreCase = true) -> "Free Trial"
-            else -> billingTitle
-        }
+    private fun getTitleText(billingTitle: String) = when {
+        billingTitle.contains(PRODUCT_ID_MONTH, true) -> getString(R.string.sub_week)
+        billingTitle.contains(PRODUCT_ID_YEAR, true) -> getString(R.string.sub_year)
+        billingTitle.contains(PRODUCT_ID_LIFETIME, true) -> getString(R.string.in_app)
+        billingTitle.contains(PRODUCT_ID_FREE_TRIAL, true) -> "Dùng thử miễn phí"
+        else -> billingTitle
     }
 
     private fun parsePeriodToReadableText(period: String): String {
+        if (period.isEmpty()) return "Không rõ"
         return when {
             period.contains("D") -> "${period.filter { it.isDigit() }} ${getString(R.string.text_day)}"
             period.contains("W") -> "${period.filter { it.isDigit() }} ${getString(R.string.text_week)}"
@@ -407,69 +344,47 @@ class PaywallActivity : AppCompatActivity() {
     }
 
     private fun setupLimitedVersionText() {
-        val str = "or Use limited version"
-        val spannableString = SpannableString(str)
-        spannableString.setSpan(
-            createClickableSpan {
-                Toast.makeText(this, "Use Limited Version", Toast.LENGTH_SHORT).show()
-            },
-            0, str.length,
-            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
-        binding.tv6.text = spannableString
-        binding.tv6.movementMethod = LinkMovementMethod.getInstance()
+        binding.tv6.apply {
+            text = SpannableString("hoặc Sử dụng phiên bản giới hạn").apply {
+                setSpan(createClickableSpan { showToast("Sử dụng phiên bản giới hạn") }, 0, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+            movementMethod = LinkMovementMethod.getInstance()
+        }
     }
 
     private fun setupTermsAndPrivacyText() {
         val fullText = getString(R.string.full_text)
-        val spannable = SpannableString(fullText)
-
-        setClickableText(spannable, fullText, "Terms") {
-            Toast.makeText(this, "Terms clicked", Toast.LENGTH_SHORT).show()
+        val spannable = SpannableString(fullText).apply {
+            setClickableText(fullText, "Điều khoản") { showToast("Đã nhấn Điều khoản") }
+            setClickableText(fullText, "Chính sách bảo mật") { showToast("Đã nhấn Chính sách bảo mật") }
         }
-        setClickableText(spannable, fullText, "Privacy policies") {
-            Toast.makeText(this, "Privacy policies clicked", Toast.LENGTH_SHORT).show()
+        binding.tv7.apply {
+            text = spannable
+            movementMethod = LinkMovementMethod.getInstance()
+            highlightColor = Color.TRANSPARENT
         }
-
-        binding.tv7.text = spannable
-        binding.tv7.movementMethod = LinkMovementMethod.getInstance()
-        binding.tv7.highlightColor = Color.TRANSPARENT
     }
 
-    private fun setClickableText(
-        spannable: SpannableString,
-        fullText: String,
-        keyword: String,
-        onClick: () -> Unit
-    ) {
+    private fun SpannableString.setClickableText(fullText: String, keyword: String, onClick: () -> Unit) {
         val start = fullText.indexOf(keyword)
         if (start >= 0) {
-            val end = start + keyword.length
-            spannable.setSpan(
-                createClickableSpanGray(onClick),
-                start, end,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
+            setSpan(createClickableSpanGray(onClick), start, start + keyword.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
     }
 
-    private fun createClickableSpan(onClick: () -> Unit): ClickableSpan {
-        return object : ClickableSpan() {
-            override fun onClick(widget: View) = onClick()
-            override fun updateDrawState(ds: TextPaint) {
-                ds.color = Color.parseColor("#C81212")
-                ds.isUnderlineText = true
-            }
+    private fun createClickableSpan(onClick: () -> Unit) = object : ClickableSpan() {
+        override fun onClick(widget: View) = onClick()
+        override fun updateDrawState(ds: TextPaint) {
+            ds.color = Color.parseColor("#C81212")
+            ds.isUnderlineText = true
         }
     }
 
-    private fun createClickableSpanGray(onClick: () -> Unit): ClickableSpan {
-        return object : ClickableSpan() {
-            override fun onClick(widget: View) = onClick()
-            override fun updateDrawState(ds: TextPaint) {
-                ds.color = Color.parseColor("#9E9E9E")
-                ds.isUnderlineText = true
-            }
+    private fun createClickableSpanGray(onClick: () -> Unit) = object : ClickableSpan() {
+        override fun onClick(widget: View) = onClick()
+        override fun updateDrawState(ds: TextPaint) {
+            ds.color = Color.parseColor("#9E9E9E")
+            ds.isUnderlineText = true
         }
     }
 
@@ -478,6 +393,40 @@ class PaywallActivity : AppCompatActivity() {
         findViewById<AppCompatImageView>(R.id.radioButton1).setImageResource(R.drawable.ic_uncheck)
         setBackgroundResource(R.drawable.bg_disable)
         alpha = 0.8f
+    }
+
+    private fun ViewGroup.updateSelection(isSelected: Boolean) {
+        setBackgroundResource(if (isSelected) R.drawable.bg_selected_paywall else R.drawable.bg_unselected_paywall)
+        findViewById<AppCompatImageView>(R.id.radioButton1).setImageResource(if (isSelected) R.drawable.ic_checked else R.drawable.ic_uncheck)
+        isEnabled = true
+        alpha = 1.0f
+    }
+
+    private fun View.disable() {
+        isEnabled = false
+        alpha = 0.5f
+    }
+
+    private fun TextView.updatePurchasedBadge() {
+        text = "Đã mua"
+        setBackgroundResource(R.drawable.bg_disable)
+        visibility = View.VISIBLE
+    }
+
+    private fun TextView.setVisibleText(text: String) {
+        this.text = text
+        visibility = View.VISIBLE
+    }
+
+    private fun setupEmptyLifetime(tv3: TextView, tv4: TextView, tv5: TextView) {
+        tv3.visibility = View.GONE
+        tv4.text = ""
+        tv5.text = "trọn đời"
+    }
+
+    private fun setupEmptySubscription(tv4: TextView, tv5: TextView) {
+        tv4.text = ""
+        tv5.text = "Không rõ"
     }
 
     override fun onDestroy() {

@@ -1,3 +1,4 @@
+/*
 package com.eco.musicplayer.audioplayer.music
 
 import android.util.Log
@@ -15,9 +16,11 @@ import kotlinx.coroutines.flow.update
 
 private const val TAG = "TrialEligibility"
 
+*/
 /**
  * Quản lý trạng thái đủ điều kiện dùng thử cho người dùng
- */
+ *//*
+
 class TrialEligibilityChecker(private val billingClient: BillingClient) {
 
     // StateFlow chứa trạng thái đủ điều kiện dùng thử cho từng sản phẩm
@@ -30,10 +33,12 @@ class TrialEligibilityChecker(private val billingClient: BillingClient) {
     // Lưu trữ các đăng ký hiện tại của người dùng
     private var activePurchases: List<Purchase> = emptyList()
 
-    /**
+    */
+/**
      * Cập nhật và kiểm tra trạng thái đủ điều kiện dùng thử cho tất cả sản phẩm
      * Gọi hàm này sau khi BillingClient đã kết nối và queryProductDetails hoàn tất
-     */
+     *//*
+
     fun refreshTrialEligibility(productDetailsMap: Map<String, ProductDetails>) {
         // Truy vấn lịch sử mua hàng và đăng ký hiện tại
         queryPurchaseHistory {
@@ -44,26 +49,32 @@ class TrialEligibilityChecker(private val billingClient: BillingClient) {
         }
     }
 
-    /**
+    */
+/**
      * Kiểm tra nhanh xem người dùng có đủ điều kiện dùng thử một sản phẩm cụ thể không
      * @return true nếu có thể dùng thử, false nếu không
-     */
+     *//*
+
     fun isEligibleForTrial(productId: String): Boolean {
         return _trialEligibilityMap.value[productId] ?: false
     }
 
-    /**
+    */
+/**
      * Kiểm tra xem một sản phẩm có cung cấp giai đoạn dùng thử không
-     */
+     *//*
+
     fun hasTrialOffer(product: ProductDetails): Boolean {
         return product.subscriptionOfferDetails?.any { offer ->
             offer.pricingPhases.pricingPhaseList.any { it.priceAmountMicros == 0L }
         } ?: false
     }
 
-    /**
+    */
+/**
      * Truy vấn lịch sử mua hàng của người dùng
-     */
+     *//*
+
     private fun queryPurchaseHistory(onComplete: () -> Unit) {
         val params = QueryPurchaseHistoryParams.newBuilder()
             .setProductType(BillingClient.ProductType.SUBS)
@@ -81,9 +92,11 @@ class TrialEligibilityChecker(private val billingClient: BillingClient) {
         }
     }
 
-    /**
+    */
+/**
      * Truy vấn các đăng ký hiện tại của người dùng
-     */
+     *//*
+
     private fun queryActivePurchases(onComplete: () -> Unit) {
         val params = QueryPurchasesParams.newBuilder()
             .setProductType(BillingClient.ProductType.SUBS)
@@ -101,9 +114,11 @@ class TrialEligibilityChecker(private val billingClient: BillingClient) {
         }
     }
 
-    /**
+    */
+/**
      * Tính toán trạng thái đủ điều kiện dùng thử cho tất cả sản phẩm
-     */
+     *//*
+
     private fun calculateTrialEligibility(productDetailsMap: Map<String, ProductDetails>) {
         val eligibilityMap = mutableMapOf<String, Boolean>()
 
@@ -137,9 +152,11 @@ class TrialEligibilityChecker(private val billingClient: BillingClient) {
         _trialEligibilityMap.update { eligibilityMap }
     }
 
-    /**
+    */
+/**
      * Kiểm tra người dùng đã từng dùng thử sản phẩm này chưa
-     */
+     *//*
+
     private fun hasUserUsedTrialBefore(productId: String): Boolean {
         // Kiểm tra trong lịch sử mua hàng
         return purchaseHistoryRecords.any { record ->
@@ -147,9 +164,11 @@ class TrialEligibilityChecker(private val billingClient: BillingClient) {
         }
     }
 
-    /**
+    */
+/**
      * Kiểm tra người dùng có đang trong giai đoạn dùng thử không
-     */
+     *//*
+
     private fun isUserCurrentlyInTrial(productId: String): Boolean {
         // Kiểm tra trong các đăng ký hiện tại
         val purchase = activePurchases.find { it.products.contains(productId) } ?: return false
@@ -162,9 +181,11 @@ class TrialEligibilityChecker(private val billingClient: BillingClient) {
         return isRecentPurchase
     }
 
-    /**
+    */
+/**
      * Cập nhật trạng thái đủ điều kiện sau khi người dùng mua hàng
-     */
+     *//*
+
     fun updateAfterPurchase(purchase: Purchase) {
         // Cập nhật danh sách đăng ký hiện tại
         activePurchases = activePurchases.filter { it.purchaseToken != purchase.purchaseToken } + purchase
@@ -239,4 +260,4 @@ class TrialEligibilityChecker(private val billingClient: BillingClient) {
             _skuDetailsMap.value = skuDetailsMap.value
         }
     }
-}
+}*/
