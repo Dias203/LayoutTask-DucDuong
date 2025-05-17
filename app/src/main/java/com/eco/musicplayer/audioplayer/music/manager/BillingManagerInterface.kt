@@ -1,6 +1,5 @@
-package com.eco.musicplayer.audioplayer.music
+package com.eco.musicplayer.audioplayer.music.manager
 
-import com.android.billingclient.api.BillingClient
 import kotlinx.coroutines.flow.StateFlow
 
 interface BillingManagerInterface {

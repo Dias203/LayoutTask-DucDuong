@@ -1,4 +1,4 @@
-package com.eco.musicplayer.audioplayer.music
+package com.eco.musicplayer.audioplayer.viewmodel
 
 import android.app.Activity
 import android.app.Application

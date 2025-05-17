@@ -1,4 +1,4 @@
-package com.eco.musicplayer.audioplayer.music
+package com.eco.musicplayer.audioplayer.music.manager
 
 import android.app.Activity
 import android.app.Application
@@ -19,7 +19,7 @@ object BillingManagerFactory {
         application: Application,
         billingListener: BillingListener,
 
-    ): BillingManagerInterface {
+        ): BillingManagerInterface {
         return if (supportsProductDetails) {
             Log.d("TAG", "createBillingManager: Using BillingManager")
             BillingManager(activity, application, billingListener)

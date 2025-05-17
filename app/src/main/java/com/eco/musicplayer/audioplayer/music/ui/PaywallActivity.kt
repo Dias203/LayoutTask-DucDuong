@@ -1,4 +1,4 @@
-package com.eco.musicplayer.audioplayer.music
+package com.eco.musicplayer.audioplayer.music.ui
 
 import android.annotation.SuppressLint
 import android.graphics.Color
@@ -18,6 +18,15 @@ import androidx.appcompat.widget.AppCompatImageView
 import androidx.lifecycle.lifecycleScope
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.SkuDetails
+import com.eco.musicplayer.audioplayer.music.constants.ConstantsProductID
+import com.eco.musicplayer.audioplayer.music.constants.PRODUCT_ID_FREE_TRIAL
+import com.eco.musicplayer.audioplayer.music.constants.PRODUCT_ID_LIFETIME
+import com.eco.musicplayer.audioplayer.music.constants.PRODUCT_ID_MONTH
+import com.eco.musicplayer.audioplayer.music.constants.PRODUCT_ID_YEAR
+import com.eco.musicplayer.audioplayer.music.state.PaywallUiState
+import com.eco.musicplayer.audioplayer.viewmodel.PaywallViewModel
+import com.eco.musicplayer.audioplayer.viewmodel.PaywallViewModelFactory
+import com.eco.musicplayer.audioplayer.music.R
 import com.eco.musicplayer.audioplayer.music.databinding.ActivityPaywallBinding
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch

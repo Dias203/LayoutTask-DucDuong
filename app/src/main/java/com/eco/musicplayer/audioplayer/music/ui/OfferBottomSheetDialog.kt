@@ -1,4 +1,4 @@
-package com.eco.musicplayer.audioplayer.music
+package com.eco.musicplayer.audioplayer.music.ui
 
 import android.content.Context
 import android.graphics.Color
@@ -12,6 +12,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
+import com.eco.musicplayer.audioplayer.music.R
 import com.eco.musicplayer.audioplayer.music.databinding.LayoutBottomSheetBinding
 import com.google.android.material.bottomsheet.BottomSheetDialog
 

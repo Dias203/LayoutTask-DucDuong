@@ -1,4 +1,4 @@
-package com.eco.musicplayer.audioplayer.music
+package com.eco.musicplayer.audioplayer.viewmodel
 
 import android.app.Activity
 import android.app.Application
@@ -7,7 +7,15 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.android.billingclient.api.Purchase
-import com.eco.musicplayer.audioplayer.music.BillingManagerFactory.createBillingClientAndConnect
+import com.eco.musicplayer.audioplayer.music.constants.ConstantsProductID
+import com.eco.musicplayer.audioplayer.music.constants.PRODUCT_ID_LIFETIME
+import com.eco.musicplayer.audioplayer.music.constants.PRODUCT_ID_MONTH
+import com.eco.musicplayer.audioplayer.music.constants.PRODUCT_ID_YEAR
+import com.eco.musicplayer.audioplayer.music.manager.BillingManagerFactory.createBillingClientAndConnect
+import com.eco.musicplayer.audioplayer.music.manager.BillingListener
+import com.eco.musicplayer.audioplayer.music.manager.BillingManagerFactory
+import com.eco.musicplayer.audioplayer.music.manager.BillingManagerInterface
+import com.eco.musicplayer.audioplayer.music.state.PaywallUiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

@@ -1,10 +1,13 @@
 
-package com.eco.musicplayer.audioplayer.music
+package com.eco.musicplayer.audioplayer.music.extension
 
 import android.util.Log
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.QueryProductDetailsParams
+import com.eco.musicplayer.audioplayer.music.manager.BillingManager
+import com.eco.musicplayer.audioplayer.music.constants.ConstantsProductID
+import com.eco.musicplayer.audioplayer.music.constants.PRODUCT_ID_FREE_TRIAL
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

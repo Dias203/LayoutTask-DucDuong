@@ -1,10 +1,13 @@
-package com.eco.musicplayer.audioplayer.music
+package com.eco.musicplayer.audioplayer.music.manager
 
 import android.app.Activity
 import android.app.Application
 import android.util.Log
 import android.widget.Toast
 import com.android.billingclient.api.*
+import com.eco.musicplayer.audioplayer.music.constants.PRODUCT_ID_LIFETIME
+import com.eco.musicplayer.audioplayer.music.extension._skuDetailsMap
+import com.eco.musicplayer.audioplayer.music.extension.queryAllSkuDetails
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

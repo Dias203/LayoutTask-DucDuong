@@ -10,7 +10,7 @@
         android:id="@+id/main"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        tools:context=".PaywallFeatureActivity">
+        tools:context=".ui.PaywallFeatureActivity">
 
         <androidx.appcompat.widget.AppCompatImageView
             android:id="@+id/btnClose"

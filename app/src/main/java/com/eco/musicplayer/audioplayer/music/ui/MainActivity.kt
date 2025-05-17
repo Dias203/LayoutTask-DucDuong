@@ -1,4 +1,4 @@
-package com.eco.musicplayer.audioplayer.music
+package com.eco.musicplayer.audioplayer.music.ui
 
 import android.annotation.SuppressLint
 import android.os.Bundle

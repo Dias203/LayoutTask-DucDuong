@@ -1,4 +1,4 @@
-package com.eco.musicplayer.audioplayer.music
+package com.eco.musicplayer.audioplayer.music.constants
 
 const val PRODUCT_ID_MONTH = "test1"
 const val PRODUCT_ID_YEAR = "test2"
