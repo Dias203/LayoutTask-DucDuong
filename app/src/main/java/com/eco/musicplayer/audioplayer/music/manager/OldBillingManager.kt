@@ -16,7 +16,7 @@ class OldBillingManager(
     application: Application,
     private val billingListener: BillingListener
 ) : BillingManagerInterface, PurchasesUpdatedListener {
-    // Triển khai các phương thức của BillingManagerInterface
+
     override val productDetailsMap: StateFlow<Map<String, Any>>
         get() = _skuDetailsMap.asStateFlow()
     private val _purchasedProductIds = MutableStateFlow<Set<String>>(emptySet())

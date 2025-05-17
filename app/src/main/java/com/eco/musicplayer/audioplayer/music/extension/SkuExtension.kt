@@ -138,8 +138,8 @@ private fun analyzeFreeTrialProduct(skuDetails: SkuDetails) {
     }
 
     // Kiểm tra xem sản phẩm có free trial hoặc ưu đãi hay không
-    val hasFreeTrial = !skuDetails.freeTrialPeriod.isNullOrEmpty()
-    val hasIntroductoryPrice = !skuDetails.introductoryPrice.isNullOrEmpty()
+    val hasFreeTrial = skuDetails.freeTrialPeriod.isNotEmpty()
+    val hasIntroductoryPrice = skuDetails.introductoryPrice.isNotEmpty()
 
     if (!hasFreeTrial && !hasIntroductoryPrice) {
         Log.i(TAG, "Original price only (no promotions)")

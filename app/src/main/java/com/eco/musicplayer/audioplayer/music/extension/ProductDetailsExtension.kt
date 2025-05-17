@@ -23,7 +23,6 @@ val allProductDetails = mutableListOf<ProductDetails>()
 
 // Truy vấn toàn bộ thông tin chi tiết sản phẩm từ Google Play (cả Subscription và In-App Purchase)
 fun BillingManager.queryAllProductDetails() {
-    // Lọc ra các sản phẩm đăng ký và mua một lần cần truy vấn
 
     var subsQueryCompleted = ConstantsProductID.subsListProduct.isEmpty() // -> false
     var inAppQueryCompleted = ConstantsProductID.inAppListProduct.isEmpty() // -> false
