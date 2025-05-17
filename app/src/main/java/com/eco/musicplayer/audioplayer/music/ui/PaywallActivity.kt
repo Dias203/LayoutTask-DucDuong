@@ -138,8 +138,8 @@ class PaywallActivity : AppCompatActivity() {
                 tv3.setVisibleText(
                     when {
                         phase.priceAmountMicros == 0L -> "Miễn phí"
-                        periodText != "Không rõ" -> "${phase.formattedPrice}/$periodText"
-                        else -> "Giá không xác định"
+                        periodText != getString(R.string.hollow) -> "${phase.formattedPrice}/$periodText"
+                        else -> getString(R.string.unknown_price)
                     }
                 )
             } ?: tv3.setVisibleText("N/A")
@@ -147,7 +147,7 @@ class PaywallActivity : AppCompatActivity() {
             lastOffer?.pricingPhases?.pricingPhaseList?.firstOrNull { it.priceAmountMicros > 0 }?.let { phase ->
                 val periodText = parsePeriodToReadableText(phase.billingPeriod ?: "")
                 tv4.text = phase.formattedPrice
-                tv5.text = if (periodText != "Không rõ") periodText else "Không rõ"
+                tv5.text = if (periodText != getString(R.string.hollow)) periodText else getString(R.string.hollow)
             } ?: setupEmptySubscription(tv4, tv5)
         }
 
@@ -192,15 +192,15 @@ class PaywallActivity : AppCompatActivity() {
         }
     }
 
-    @SuppressLint("SetTextI18n")
+
     private fun setupUnknownPlan(productId: String, tv2: TextView, tv3: TextView, tv4: TextView, tv5: TextView) {
-        tv2.text = "Không hỗ trợ"
+        tv2.text = getString(R.string.not_supported)
         tv3.visibility = View.GONE
         tv4.text = ""
-        tv5.text = "Không rõ"
+        tv5.text = getString(R.string.hollow)
         if (viewModel.selectedProductId.value == productId) {
             binding.tvSub.apply {
-                text = "N/A"
+                text = getString(R.string.na_value)
                 visibility = View.VISIBLE
             }
         }
@@ -210,7 +210,7 @@ class PaywallActivity : AppCompatActivity() {
         return when (plan) {
             is ProductDetails -> {
                 if (productId == PRODUCT_ID_LIFETIME) {
-                    plan.oneTimePurchaseOfferDetails?.formattedPrice?.let { "Thanh toán một lần: $it" } ?: "N/A"
+                    plan.oneTimePurchaseOfferDetails?.formattedPrice?.let { getString(R.string.onetime_purchases, it) } ?: getString(R.string.na_value)
                 } else {
                     val firstOffer = plan.subscriptionOfferDetails?.firstOrNull()
                     val lastOffer = plan.subscriptionOfferDetails?.lastOrNull()
@@ -223,17 +223,17 @@ class PaywallActivity : AppCompatActivity() {
                             val firstPeriod = parsePeriodToReadableText(firstPhase.billingPeriod)
                             val lastPeriod = parsePeriodToReadableText(lastPhase.billingPeriod)
                             val firstPrice = if (firstPhase.priceAmountMicros == 0L) "Miễn phí" else firstPhase.formattedPrice
-                            if (firstPeriod != "Không rõ" && lastPeriod != "Không rõ") {
+                            if (firstPeriod != getString(R.string.hollow) && lastPeriod != getString(R.string.hollow)) {
                                 "$firstPrice/$firstPeriod đầu tiên, sau đó ${lastPhase.formattedPrice}/$lastPeriod"
                             } else {
-                                "Giá không xác định"
+                                getString(R.string.unknown_price)
                             }
                         }
                         lastPhase != null -> {
                             val lastPeriod = parsePeriodToReadableText(lastPhase.billingPeriod)
-                            if (lastPeriod != "Không rõ") "${lastPhase.formattedPrice}/$lastPeriod" else "Giá không xác định"
+                            if (lastPeriod != getString(R.string.hollow)) "${lastPhase.formattedPrice}/$lastPeriod" else getString(R.string.unknown_price)
                         }
-                        else -> "N/A"
+                        else -> getString(R.string.na_value)
                     }
                 }
             }
@@ -246,12 +246,12 @@ class PaywallActivity : AppCompatActivity() {
                         "${plan.introductoryPrice}/${parsePeriodToReadableText(plan.subscriptionPeriod)}, sau đó ${plan.price}/${parsePeriodToReadableText(plan.subscriptionPeriod)}"
                     }
                     else -> {
-                        if (productId == PRODUCT_ID_LIFETIME) "Thanh toán một lần: ${plan.price}"
+                        if (productId == PRODUCT_ID_LIFETIME) getString(R.string.onetime_purchases, plan.price)
                         else "${plan.price}/${parsePeriodToReadableText(plan.subscriptionPeriod)}"
                     }
                 }
             }
-            else -> "N/A"
+            else -> getString(R.string.na_value)
         }
     }
 
@@ -275,7 +275,7 @@ class PaywallActivity : AppCompatActivity() {
             }
             binding.btnStartFreeTrial.apply {
                 isEnabled = false
-                text = "Đã mua"
+                text = getString(R.string.purchased)
             }
             return
         }
@@ -297,7 +297,7 @@ class PaywallActivity : AppCompatActivity() {
             }
         }
 
-        binding.btnStartFreeTrial.text = if (currentSubscription != null) "Nâng cấp gói" else "Bắt đầu dùng thử miễn phí"
+        binding.btnStartFreeTrial.text = if (currentSubscription != null) getString(R.string.upgrade) else getString(R.string.free_trial)
     }
 
     private fun updatePurchasedBadge(productId: String) {
@@ -417,7 +417,7 @@ class PaywallActivity : AppCompatActivity() {
     }
 
     private fun TextView.updatePurchasedBadge() {
-        text = "Đã mua"
+        text = getString(R.string.purchased)
         setBackgroundResource(R.drawable.bg_disable)
         visibility = View.VISIBLE
     }

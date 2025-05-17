@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.Purchase
 import com.eco.musicplayer.audioplayer.music.constants.ConstantsProductID
 import com.eco.musicplayer.audioplayer.music.constants.PRODUCT_ID_LIFETIME
@@ -13,6 +14,7 @@ import com.eco.musicplayer.audioplayer.music.constants.PRODUCT_ID_MONTH
 import com.eco.musicplayer.audioplayer.music.constants.PRODUCT_ID_YEAR
 import com.eco.musicplayer.audioplayer.music.manager.BillingManagerFactory.createBillingClientAndConnect
 import com.eco.musicplayer.audioplayer.music.manager.BillingListener
+import com.eco.musicplayer.audioplayer.music.manager.BillingManager
 import com.eco.musicplayer.audioplayer.music.manager.BillingManagerFactory
 import com.eco.musicplayer.audioplayer.music.manager.BillingManagerInterface
 import com.eco.musicplayer.audioplayer.music.state.PaywallUiState
@@ -40,7 +42,6 @@ class PaywallViewModel(
         )
     }
 
-    // Lưu trữ cả ProductDetails và SkuDetails
     private val _detailsMap = MutableStateFlow<Map<String, Any>>(emptyMap())
     val detailsMap: StateFlow<Map<String, Any>> = _detailsMap.asStateFlow()
 
@@ -56,6 +57,7 @@ class PaywallViewModel(
     init {
         createBillingClientAndConnect(context = application) {
             loadInitialData()
+            syncPurchasesWithGooglePlay()
             observeBillingData()
         }
     }
@@ -77,6 +79,24 @@ class PaywallViewModel(
         withContext(Dispatchers.IO) {
             val savedProducts = sharedPreferences.getStringSet(PURCHASED_PRODUCTS_KEY, emptySet()) ?: emptySet()
             _purchasedProducts.value = savedProducts
+        }
+    }
+
+    // Đồng bộ danh sách mua hàng với Google Play
+    /**
+     * Đồng bộ SharedPreferences với danh sách gói hợp lệ trong syncPurchasesWithGooglePlay.
+     * Cho phép mua lại các gói đã hủy bằng cách cập nhật logic chọn và mua trong PaywallViewModel và PaywallActivity.
+     */
+    private fun syncPurchasesWithGooglePlay() {
+        viewModelScope.launch {
+            val activeProductIds = (billingManager as? BillingManager)?.checkActivePurchases() ?: emptySet()
+            withContext(Dispatchers.IO) {
+                val currentProducts = sharedPreferences.getStringSet(PURCHASED_PRODUCTS_KEY, emptySet())?.toMutableSet() ?: mutableSetOf()
+                val updatedProducts = currentProducts.intersect(activeProductIds)
+                sharedPreferences.edit().putStringSet(PURCHASED_PRODUCTS_KEY, updatedProducts).apply()
+                _purchasedProducts.value = updatedProducts
+                Log.d(TAG, "Synced purchased products: $updatedProducts")
+            }
         }
     }
 
@@ -119,14 +139,14 @@ class PaywallViewModel(
                 }
                 currentSubscription != null && productId in ConstantsProductID.subsListProduct -> {
                     if (isUpgradeAllowed(currentSubscription, productId)) {
-                        Log.d(TAG, "Launching billing flow for upgrade from $currentSubscription to $productId")
+                        Log.d(
+                            TAG,
+                            "Launching billing flow for upgrade from $currentSubscription to $productId"
+                        )
                         billingManager.launchBillingFlowForUpgrade(
                             productDetails = productDetails,
                             oldProductId = currentSubscription
                         )
-                    } else {
-                        _uiState.value = PaywallUiState.Error("Bạn chỉ có thể nâng cấp lên gói cao hơn!")
-                        Log.w(TAG, "Upgrade not allowed: $currentSubscription to $productId")
                     }
                 }
                 else -> {

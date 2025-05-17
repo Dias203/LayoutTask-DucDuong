@@ -117,9 +117,9 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/roboto_regular"
                 android:includeFontPadding="false"
+                android:gravity="center_vertical"
                 android:maxLines="2"
                 android:paddingVertical="@dimen/_2sdp"
-                android:text="Auto-renew. Cancel anytime Auto-renew. Cancel anytimeAuto-renew. Cancel anytimeAuto-renew. Cancel anytime"
                 android:textSize="@dimen/_10sdp"
                 app:autoSizeMaxTextSize="@dimen/_10sdp"
                 app:autoSizeMinTextSize="@dimen/_6sdp"
@@ -127,14 +127,15 @@
                 app:layout_constraintBottom_toBottomOf="@+id/tv5"
                 app:layout_constraintEnd_toStartOf="@id/tv5"
                 app:layout_constraintStart_toStartOf="@id/tv2"
-                app:layout_constraintTop_toBottomOf="@+id/tv4"
-                tools:ignore="HardcodedText" />
+                app:layout_constraintTop_toTopOf="@+id/tv5"
+                tools:ignore="HardcodedText"
+                tools:text="Auto-renew. Cancel anytime Auto-renew. Cancel anytimeAuto-renew. Cancel anytimeAuto-renew. Cancel anytime" />
 
             <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/tv4"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/_6sdp"
+                android:layout_marginTop="4dp"
                 android:fontFamily="@font/roboto_medium"
                 android:gravity="end|center_vertical"
                 android:includeFontPadding="false"
@@ -164,6 +165,7 @@
                 android:textStyle="italic"
                 app:autoSizeMaxTextSize="@dimen/_10sdp"
                 app:autoSizeMinTextSize="@dimen/_5sdp"
+                android:layout_marginTop="@dimen/_4sdp"
                 app:autoSizeTextType="uniform"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="@id/tv4"

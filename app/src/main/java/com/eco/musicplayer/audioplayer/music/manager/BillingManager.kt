@@ -11,6 +11,8 @@ import com.eco.musicplayer.audioplayer.music.extension.queryAllProductDetails
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 private const val TAG = "BillingManager"
 
@@ -23,7 +25,6 @@ class BillingManager(
     private val context = application.applicationContext
     private val _purchasedProductIds = MutableStateFlow<Set<String>>(emptySet())
     private val _purchases = MutableStateFlow<List<Purchase>>(emptyList())
-    // State flows
     override val productDetailsMap: StateFlow<Map<String, Any>>
         get() = _productDetailsMap.asStateFlow()
 
@@ -33,7 +34,6 @@ class BillingManager(
         setupBillingConnection()
     }
 
-    // region Billing Client Setup
     private fun createBillingClient(): BillingClient {
         return BillingClient.newBuilder(context)
             .setListener(this)
@@ -53,7 +53,7 @@ class BillingManager(
                     when (billingResult.responseCode) {
                         BillingClient.BillingResponseCode.OK -> {
                             Log.d(TAG, "Billing connection success")
-                            queryAllProductDetails() // Gọi extension function
+                            queryAllProductDetails()
                             queryUserPurchases()
                         }
                         else -> Log.e(
@@ -69,23 +69,75 @@ class BillingManager(
                 }
             })
         } else {
-            queryAllProductDetails() // Gọi extension function
+            queryAllProductDetails()
         }
     }
-    // endregion
 
     private fun retryConnect() {
         setupBillingConnection()
     }
 
-    // region Purchases
-    // Truy vấn tất cả giao dịch của người dùng (cho cả sản phẩm in-app và subscriptions)
+    // Kiểm tra các giao dịch đang hoạt động và trả về danh sách productId hợp lệ
+    /**
+     * Hàm này truy vấn cả subs và in-app purchase, chỉ lấy các giao dịch đã hoàn tất và đã được xác nhận.
+     * Kết quả trả về sẽ là 1 set chứa các productID của các gói đang hoạt động.
+     * Hàm này sẽ được gọi ở PaywallViewModel khi khởi tạo để đồng bộ SharedPreferences.
+     */
+    suspend fun checkActivePurchases(): Set<String> = suspendCancellableCoroutine { continuation ->
+        val activeProductIds = mutableSetOf<String>()
+        var subsQueryCompleted = false
+        var inAppQueryCompleted = false
+
+        fun checkCompletion() {
+            if (subsQueryCompleted && inAppQueryCompleted) {
+                continuation.resume(activeProductIds)
+            }
+        }
+
+        // Truy vấn subscriptions
+        billingClient.queryPurchasesAsync(
+            QueryPurchasesParams.newBuilder()
+                .setProductType(BillingClient.ProductType.SUBS)
+                .build()
+        ) { billingResult, purchasesList ->
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                activeProductIds.addAll(
+                    purchasesList
+                        .filter { it.purchaseState == Purchase.PurchaseState.PURCHASED && it.isAcknowledged }
+                        .flatMap { it.products }
+                )
+            } else {
+                Log.e(TAG, "Failed to query SUBS purchases: ${billingResult.debugMessage}")
+            }
+            subsQueryCompleted = true
+            checkCompletion()
+        }
+
+        // Truy vấn in-app purchases
+        billingClient.queryPurchasesAsync(
+            QueryPurchasesParams.newBuilder()
+                .setProductType(BillingClient.ProductType.INAPP)
+                .build()
+        ) { billingResult, purchasesList ->
+            if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
+                activeProductIds.addAll(
+                    purchasesList
+                        .filter { it.purchaseState == Purchase.PurchaseState.PURCHASED && it.isAcknowledged }
+                        .flatMap { it.products }
+                )
+            } else {
+                Log.e(TAG, "Failed to query INAPP purchases: ${billingResult.debugMessage}")
+            }
+            inAppQueryCompleted = true
+            checkCompletion()
+        }
+    }
+
     private fun queryUserPurchases() {
         queryPurchases(BillingClient.ProductType.SUBS)
         queryPurchases(BillingClient.ProductType.INAPP)
     }
 
-    // Truy vấn giao dịch theo loại sản phẩm
     private fun queryPurchases(productType: String) {
         billingClient.queryPurchasesAsync(
             QueryPurchasesParams.newBuilder()
@@ -94,13 +146,10 @@ class BillingManager(
         ) { billingResult, purchasesList ->
             if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
                 handleAllPurchases(purchasesList)
-                Log.d("DUC", "queryPurchases:111 ")
                 if (productType == BillingClient.ProductType.INAPP) {
                     purchasesList.forEach { purchase ->
                         if (purchase.products.contains(PRODUCT_ID_LIFETIME)) {
                             Log.d("Cancel Lifetime", "Cancel Lifetime")
-                            //Hủy Lifetime phía dev
-                            //consumePurchase(purchase)
                         }
                     }
                 }
@@ -121,16 +170,13 @@ class BillingManager(
         Log.d(TAG, "Updated purchasedProductIds: $newPurchasedProductIds")
     }
 
-    // Lấy purchaseToken của giao dịch gần nhất cho một sản phẩm cụ thể.
     private fun getOldPurchaseToken(productId: String): String? {
         return _purchases.value
             .filter { it.products.contains(productId) && it.purchaseState == Purchase.PurchaseState.PURCHASED }
             .maxByOrNull { it.purchaseTime }
             ?.purchaseToken
     }
-    // endregion
 
-    // region Billing Flow
     override fun launchBillingFlow(productDetails: Any, offerToken: String?) {
         if (productDetails !is ProductDetails) {
             Log.e(TAG, "Invalid productDetails type: ${productDetails.javaClass}")
@@ -178,13 +224,11 @@ class BillingManager(
         }
     }
 
-    // Quy trình cấp gói
     override fun launchBillingFlowForUpgrade(productDetails: Any, oldProductId: String) {
         if (productDetails !is ProductDetails) {
             Log.e(TAG, "Invalid productDetails type: ${productDetails.javaClass}")
             return
         }
-        // Logic hiện tại của launchBillingFlowForUpgrade
         val oldPurchaseToken = getOldPurchaseToken(oldProductId) ?: run {
             Log.e(TAG, "No valid purchase token found for $oldProductId")
             Toast.makeText(context, "Không tìm thấy giao dịch trước đó", Toast.LENGTH_SHORT).show()
@@ -219,7 +263,6 @@ class BillingManager(
         billingClient.launchBillingFlow(activity, billingFlowParams)
     }
 
-    // Quy trình hạ cấp gói
     fun launchBillingFlowForDowngrade(productDetails: ProductDetails, oldProductId: String) {
         val oldPurchaseToken = getOldPurchaseToken(oldProductId) ?: run {
             Log.e(TAG, "No valid purchase token found for $oldProductId")
@@ -256,10 +299,7 @@ class BillingManager(
 
         billingClient.launchBillingFlow(activity, billingFlowParams)
     }
-    // endregion
 
-    // region Purchase Handling
-    // Xử lý kết quả của các giao dịch (mới, nâng cấp, hạ cấp).
     override fun onPurchasesUpdated(billingResult: BillingResult, purchases: List<Purchase>?) {
         when (billingResult.responseCode) {
             BillingClient.BillingResponseCode.OK -> {
@@ -284,7 +324,6 @@ class BillingManager(
         }
     }
 
-    // Xác nhận giao dịch với Google Play để hoàn tất quá trình mua hàng.
     private fun acknowledgePurchase(purchase: Purchase) {
         val params = AcknowledgePurchaseParams.newBuilder()
             .setPurchaseToken(purchase.purchaseToken)
@@ -296,10 +335,7 @@ class BillingManager(
             }
         }
     }
-    // endregion
 
-
-    // Tiêu thụ giao dịch (dùng cho sản phẩm in-app tiêu thụ được).
     private fun consumePurchase(purchase: Purchase) {
         val consumeParams = ConsumeParams.newBuilder()
             .setPurchaseToken(purchase.purchaseToken)
@@ -324,9 +360,7 @@ class BillingManager(
     fun checkVersion() {
         val result = billingClient.isFeatureSupported(BillingClient.FeatureType.PRODUCT_DETAILS)
         if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-            // Thiết bị hỗ trợ ProductDetails
         } else {
-            // Thiết bị không hỗ trợ, fallback sang SkuDetails (nếu bạn dùng version thấp hơn 5)
         }
     }
 }

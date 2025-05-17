@@ -39,31 +39,27 @@ fun BillingManager.queryAllProductDetails() {
     }
 
     // Truy vấn subscription
-    if (ConstantsProductID.subsListProduct.isNotEmpty()) {
-        queryProductDetails(
-            productIds = ConstantsProductID.subsListProduct,
-            productType = BillingClient.ProductType.SUBS,
-            onComplete = { products ->
-                allProductDetails.addAll(products)
-                subsQueryCompleted = true
-                Log.d(TAG, "queryAllProductDetails: 2")
-                checkAndProcess()
-            }
-        )
-    }
+    queryProductDetails(
+        productIds = ConstantsProductID.subsListProduct,
+        productType = BillingClient.ProductType.SUBS,
+        onComplete = { products ->
+            allProductDetails.addAll(products)
+            subsQueryCompleted = true
+            Log.d(TAG, "queryAllProductDetails: 2")
+            checkAndProcess()
+        }
+    )
 
     // Truy vấn sản phẩm mua một lần
-    if (ConstantsProductID.inAppListProduct.isNotEmpty()) {
-        queryProductDetails(
-            productIds = ConstantsProductID.inAppListProduct,
-            productType = BillingClient.ProductType.INAPP,
-            onComplete = { products ->
-                allProductDetails.addAll(products)
-                inAppQueryCompleted = true
-                checkAndProcess()
-            }
-        )
-    }
+    queryProductDetails(
+        productIds = ConstantsProductID.inAppListProduct,
+        productType = BillingClient.ProductType.INAPP,
+        onComplete = { products ->
+            allProductDetails.addAll(products)
+            inAppQueryCompleted = true
+            checkAndProcess()
+        }
+    )
 }
 
 // Hàm thực hiện truy vấn ProductDetails từ Google Play với danh sách ID sản phẩm

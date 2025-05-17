@@ -34,4 +34,12 @@
     <string name="sub_month">Gói tháng</string>
     <string name="sub_year">Gói năm</string>
     <string name="in_app">Trọn đời</string>
+    <string name="not_supported">Không hỗ trợ</string>
+    <string name="hollow">Không rõ</string>
+    <string name="na_value">N/A</string>
+    <string name="onetime_purchases">Thanh toán một lần: %s</string>
+    <string name="unknown_price">Giá không xác định</string>
+    <string name="purchased">Đã mua</string>
+    <string name="upgrade">Nâng cấp gói</string>
+    <string name="free_trial">Bắt đầu dùng thử miễn phí</string>
 </resources>
